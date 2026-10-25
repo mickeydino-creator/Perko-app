@@ -15,6 +15,8 @@ export const colors = {
   slateOnInk: '#B9BCB0', // paper 70% on ink
   inkOnLime14: 'rgba(17, 19, 15, 0.14)', // empty stamp on lime
   inkOnLime70: 'rgba(17, 19, 15, 0.7)', // reward ring on lime
+  paperOnInk16: 'rgba(248, 248, 244, 0.16)', // empty stamp and track on ink or muted
+  paperOnInk60: 'rgba(248, 248, 244, 0.6)', // reward ring on ink or muted
 } as const;
 
 /** Heebo families loaded in the root layout, one per weight (Android needs a family per weight). */

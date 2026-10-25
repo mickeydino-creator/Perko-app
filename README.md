@@ -25,7 +25,7 @@ Perko-app/
   src/app/                 screens (Expo Router)
     onboarding.tsx         3 intro screens
     sign-in.tsx            phone number + SMS code
-    (tabs)/index.tsx       wallet: cards, the one closest to a reward first
+    (tabs)/index.tsx       wallet: a stack of physical cards, the one closest to a reward first
     (tabs)/discover.tsx    participating businesses, category filter, "הוספה"
     (tabs)/rewards.tsx     ready rewards and redemption history
     (tabs)/profile.tsx     name, phone, privacy link, sign out, delete account
@@ -36,6 +36,7 @@ Perko-app/
     c/[token].tsx          perko://c/... deep link (counter code opened by the phone's camera app)
   src/theme.ts             design tokens, mirrors src/styles/global.css of Perko-marketing (light values only)
   src/components/          Wordmark/AppIcon, stamps/meter, cards, buttons, icons
+  src/components/wallet/   the wallet card (WalletCard), the gesture stack (WalletStack), the TalkBack list (WalletList)
   src/lib/collect.ts       the one client entry point for collecting (QR now, NFC later)
   src/lib/backend.ts       data-layer interface; supabaseBackend.ts (real) and demoBackend.ts (local sample data)
   supabase/migrations/     schema, RLS, atomic write functions
@@ -66,6 +67,7 @@ flow (scan → card complete → redeem → new card) can be tried in a minute.
 
 ```sh
 npm run typecheck       # tsc, app + shared code + scripts
+npm run lint            # ESLint (eslint-config-expo, React Compiler rules)
 npm test                # unit tests: stamps/points, cooldown, rate limit, redeem codes, QR signatures, phone numbers
 scripts/test-db.sh      # schema + RLS + write functions on a throwaway local Postgres (needs psql)
 npx deno check supabase/functions/*/index.ts   # Edge Functions (Deno)
@@ -118,6 +120,24 @@ Local stack instead (needs Docker): `npx supabase start`, then `npx supabase db 
 - **delete-account** deletes the auth user; all their rows cascade.
 - The rules live once in `supabase/functions/_shared/loyalty.ts` and `token.ts` (no imports), used by the
   functions, the app (labels, demo mode) and the tests.
+
+## The wallet stack
+
+The home screen shows the cards as physical cards (ID-1 proportions 1.586:1, 20 dp corners, elevation, a 1 dp top-edge
+highlight, one brand colour per business chosen by a hash of its id, a cropped disc echoing the logo's dot).
+
+- **Stack:** each card shows its 70 dp header strip (initial, name, count, or "מוכנה למימוש" with a ring when the
+  reward is ready). The screen scrolls with a Reanimated pan + `withDecay` instead of a ScrollView, because Android's
+  ScrollView cannot overscroll: pulling past the top spreads the cards (rubber band), scrolling down pins the cards
+  that pass the top edge into a thin compressed pile.
+- **Focus:** a tap springs the card to the top, the others drop into a pile above the tab bar, and the quick actions
+  appear ("מימוש ההטבה" when ready, "סריקה בקופה", "פרטי הכרטיס"). A horizontal swipe moves between cards (RTL: dragging
+  right brings the next card); a swipe down, a tap on the card or Android back returns to the stack. Light haptics on
+  snap and switch.
+- **Accessibility:** every card is a button labelled with `cardA11y` and has "הכרטיס הבא" / "הכרטיס הקודם" actions.
+  With TalkBack on, the wallet renders as a plain list of the same cards (`WalletList`). With "remove animations" on,
+  changes are instant.
+- Built on react-native-reanimated 4 and react-native-gesture-handler 3 (hook API); all motion runs on the UI thread.
 
 ### QR payload and key rotation
 

@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { I18nManager, Platform, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SessionProvider, useSession } from '../lib/session';
 import { colors } from '../theme';
@@ -48,14 +49,16 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({ Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_800ExtraBold, Heebo_900Black });
   if (!loaded && !error) return null;
   return (
-    <SafeAreaProvider style={{ backgroundColor: colors.pale }}>
-      <SessionProvider>
-        {/* direction: belt and braces for the RTL layout inside the app. */}
-        <View style={{ flex: 1, direction: 'rtl', backgroundColor: colors.pale }}>
-          <Routes />
-        </View>
-      </SessionProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.pale }}>
+      <SafeAreaProvider style={{ backgroundColor: colors.pale }}>
+        <SessionProvider>
+          {/* direction: belt and braces for the RTL layout inside the app. */}
+          <View style={{ flex: 1, direction: 'rtl', backgroundColor: colors.pale }}>
+            <Routes />
+          </View>
+        </SessionProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

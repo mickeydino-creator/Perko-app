@@ -18,7 +18,7 @@ export default function Redeem() {
 
   const [code, setCode] = useState<Code | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ reward: string } | null>(null);
@@ -46,12 +46,14 @@ export default function Redeem() {
   // A live clock: the screen visibly changes every second, and the code every 30 seconds.
   useEffect(() => {
     if (done || card?.status !== 'complete') return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetchCode sets state only after its request resolves
     fetchCode();
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [card?.status, done, fetchCode]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- as above: state changes after the request
     if (code && now >= code.expiresAt) fetchCode();
   }, [now, code, fetchCode]);
 
@@ -125,7 +127,7 @@ export default function Redeem() {
 /** The short-lived code, a countdown bar and a ticking clock so staff can tell a live screen from a screenshot. */
 function LiveCode({ code, secondsLeft, now }: { code: string | null; secondsLeft: number; now: number }) {
   const reduce = useReduceMotion();
-  const pulse = useRef(new Animated.Value(1)).current;
+  const pulse = useState(() => new Animated.Value(1))[0];
   useEffect(() => {
     if (!code || reduce) return;
     pulse.setValue(0.4);

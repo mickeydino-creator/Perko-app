@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DEMO } from '../lib/config';
@@ -25,7 +25,7 @@ type ButtonProps = {
 
 /** Fully rounded pill, one shape everywhere (website .btn). Presses scale to 0.97 like the site. */
 export function Button({ label, onPress, variant = 'ink', disabled, busy, small, hint, style }: ButtonProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useState(() => new Animated.Value(1))[0];
   const reduce = useReduceMotion();
   const to = (v: number) =>
     !reduce && Animated.timing(scale, { toValue: v, duration: motion.press, easing: motion.out, useNativeDriver: true }).start();
@@ -189,12 +189,10 @@ export function LoadState({ loading, error, onRetry }: { loading: boolean; error
 /** Fade-and-rise entrance (website [data-reveal]); none with reduce motion. */
 export function Reveal({ children, delay = 0, style }: { children: ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
   const reduce = useReduceMotion();
-  const v = useRef(new Animated.Value(0)).current;
-  const started = useRef(false);
-  if (!started.current) {
-    started.current = true;
+  const v = useState(() => new Animated.Value(0))[0];
+  useEffect(() => {
     Animated.timing(v, { toValue: 1, duration: 520, delay, easing: motion.expoOut, useNativeDriver: true }).start();
-  }
+  }, [v, delay]);
   if (reduce) return <View style={style}>{children}</View>;
   const translateY = v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] });
   return <Animated.View style={[style, { opacity: v, transform: [{ translateY }] }]}>{children}</Animated.View>;

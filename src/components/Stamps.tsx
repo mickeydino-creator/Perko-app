@@ -1,5 +1,5 @@
 // Stamp grid for stamp programs, progress meter for points programs (website: src/components/ui/Stamps.astro).
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, View } from 'react-native';
 import { useReduceMotion } from '../lib/hooks';
 import type { ProgramType } from '../lib/types';
@@ -12,19 +12,27 @@ export function columnsFor(goal: number): number {
   return 5;
 }
 
+/** The surface the stamps sit on. "dark" is for ink and muted wallet cards: filled stamps are lime. */
+export type StampSurface = 'light' | 'lime' | 'dark';
+
 type StampsProps = {
   goal: number;
   current: number;
   /** On a lime surface: empty stamps are ink 14%, the reward stamp is an ink ring. */
   onLime?: boolean;
+  surface?: StampSurface;
+  /** Overrides the default column count (e.g. one row on a wallet card). */
+  columns?: number;
+  gap?: number;
   /** Index of a stamp that just landed: it drops in with a short expo-out scale. */
   landIndex?: number;
   size?: 'normal' | 'large';
 };
 
-export function Stamps({ goal, current, onLime, landIndex, size = 'normal' }: StampsProps) {
-  const cols = columnsFor(goal);
-  const gap = size === 'large' ? 12 : 9;
+export function Stamps({ goal, current, onLime, surface, columns, gap: gapProp, landIndex, size = 'normal' }: StampsProps) {
+  const cols = columns ?? columnsFor(goal);
+  const gap = gapProp ?? (size === 'large' ? 12 : 9);
+  const on = surface ?? (onLime ? 'lime' : 'light');
   return (
     <View
       accessible
@@ -34,16 +42,18 @@ export function Stamps({ goal, current, onLime, landIndex, size = 'normal' }: St
     >
       {Array.from({ length: goal }, (_, i) => (
         <View key={i} style={{ width: `${100 / cols}%`, paddingHorizontal: gap / 2 }}>
-          <Stamp on={i < current} reward={i === goal - 1} onLime={onLime} land={i === landIndex} />
+          <Stamp on={i < current} reward={i === goal - 1} surface={on} land={i === landIndex} />
         </View>
       ))}
     </View>
   );
 }
 
-function Stamp({ on, reward, onLime, land }: { on: boolean; reward: boolean; onLime?: boolean; land?: boolean }) {
+function Stamp({ on, reward, surface, land }: { on: boolean; reward: boolean; surface: StampSurface; land?: boolean }) {
+  const onLime = surface === 'lime';
+  const dark = surface === 'dark';
   const reduce = useReduceMotion();
-  const v = useRef(new Animated.Value(land ? 0 : 1)).current;
+  const v = useState(() => new Animated.Value(land ? 0 : 1))[0];
 
   useEffect(() => {
     if (!land) return;
@@ -55,9 +65,9 @@ function Stamp({ on, reward, onLime, land }: { on: boolean; reward: boolean; onL
     Animated.timing(v, { toValue: 1, duration: motion.stamp, delay: 180, easing: motion.expoOut, useNativeDriver: true }).start();
   }, [land, reduce, v]);
 
-  const empty = onLime ? colors.inkOnLime14 : colors.pale;
-  const ring = onLime ? colors.inkOnLime70 : colors.paleStrong;
-  const filled = colors.ink;
+  const empty = dark ? colors.paperOnInk16 : onLime ? colors.inkOnLime14 : colors.pale;
+  const ring = dark ? colors.paperOnInk60 : onLime ? colors.inkOnLime70 : colors.paleStrong;
+  const filled = dark ? colors.lime : colors.ink;
   const showRing = reward && !on;
 
   // "Land": the stamp comes down from 1.6x and settles, like a rubber stamp hitting the card.
@@ -66,7 +76,7 @@ function Stamp({ on, reward, onLime, land }: { on: boolean; reward: boolean; onL
   return (
     <View style={{ aspectRatio: 1, borderRadius: 999, backgroundColor: showRing ? 'transparent' : empty, alignItems: 'center', justifyContent: 'center' }}>
       {showRing ? (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999, borderWidth: onLime ? 2.5 : 2.5, borderColor: ring, backgroundColor: onLime ? 'transparent' : colors.paper }} />
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 999, borderWidth: onLime ? 2.5 : 2.5, borderColor: ring, backgroundColor: onLime || dark ? 'transparent' : colors.paper }} />
       ) : null}
       {on ? (
         <Animated.View
@@ -78,7 +88,7 @@ function Stamp({ on, reward, onLime, land }: { on: boolean; reward: boolean; onL
       ) : null}
       {reward ? (
         <View style={{ width: '55%', height: '55%' }}>
-          <CheckIcon size="100%" color={on ? colors.lime : onLime ? colors.ink : colors.muted} />
+          <CheckIcon size="100%" color={dark ? (on ? colors.ink : colors.paper) : on ? colors.lime : onLime ? colors.ink : colors.muted} />
         </View>
       ) : null}
     </View>
@@ -86,10 +96,10 @@ function Stamp({ on, reward, onLime, land }: { on: boolean; reward: boolean; onL
 }
 
 /** Points progress (website .ui-meter). The fill grows from the start side (right in RTL). */
-export function Meter({ goal, current, onLime, animate }: { goal: number; current: number; onLime?: boolean; animate?: boolean }) {
+export function Meter({ goal, current, onLime, dark, animate }: { goal: number; current: number; onLime?: boolean; dark?: boolean; animate?: boolean }) {
   const reduce = useReduceMotion();
   const pct = Math.min(1, Math.max(0, goal ? current / goal : 0));
-  const w = useRef(new Animated.Value(animate && !reduce ? 0 : pct)).current;
+  const w = useState(() => new Animated.Value(animate && !reduce ? 0 : pct))[0];
   useEffect(() => {
     if (!animate || reduce) {
       w.setValue(pct);
@@ -103,10 +113,10 @@ export function Meter({ goal, current, onLime, animate }: { goal: number; curren
       accessibilityRole="progressbar"
       accessibilityLabel={`${current} מתוך ${goal} נקודות`}
       accessibilityValue={{ min: 0, max: goal, now: current }}
-      style={{ height: 14, borderRadius: 999, backgroundColor: onLime ? colors.inkOnLime14 : colors.pale, overflow: 'hidden', flexDirection: 'row' }}
+      style={{ height: 14, borderRadius: 999, backgroundColor: dark ? colors.paperOnInk16 : onLime ? colors.inkOnLime14 : colors.pale, overflow: 'hidden', flexDirection: 'row' }}
     >
       <Animated.View
-        style={{ height: '100%', borderRadius: 999, backgroundColor: colors.ink, width: w.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }}
+        style={{ height: '100%', borderRadius: 999, backgroundColor: dark ? colors.lime : colors.ink, width: w.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }}
       />
     </View>
   );

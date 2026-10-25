@@ -153,7 +153,7 @@ function PermissionAsk({ canAsk, onAsk }: { canAsk: boolean; onAsk: () => void }
 function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectOutcome; onAgain: () => void; onRetry: () => void; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const reduce = useReduceMotion();
-  const y = useRef(new Animated.Value(reduce ? 0 : 1)).current;
+  const y = useState(() => new Animated.Value(reduce ? 0 : 1))[0];
   useEffect(() => {
     if (!reduce) Animated.timing(y, { toValue: 0, duration: 420, easing: motion.expoOut, useNativeDriver: true }).start();
   }, [reduce, y]);

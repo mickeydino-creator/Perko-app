@@ -1,14 +1,15 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { sortWallet } from '../../../supabase/functions/_shared/loyalty.ts';
-import { CardRow, HeroCard } from '../../components/CardViews';
 import { Txt } from '../../components/Txt';
-import { Avatar, Button, DemoBanner, Heading, LoadState, Reveal, Screen } from '../../components/ui';
+import { Avatar, Button, DemoBanner, Heading, LoadState, Screen } from '../../components/ui';
+import { WalletList } from '../../components/wallet/WalletList';
+import { WalletStack } from '../../components/wallet/WalletStack';
 import { api } from '../../lib/api';
-import { useLoad } from '../../lib/hooks';
+import { useLoad, useScreenReader } from '../../lib/hooks';
 import { useSession } from '../../lib/session';
 import type { Business, Card } from '../../lib/types';
-import { colors, radius, TAB_CLEARANCE, touch } from '../../theme';
+import { colors, gutter, radius, TAB_CLEARANCE, touch } from '../../theme';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -20,52 +21,52 @@ function greeting(): string {
 
 export default function Wallet() {
   const { profile } = useSession();
+  const screenReader = useScreenReader();
   const { data, error, loading, reload } = useLoad(async () => {
     const [cards, businesses] = await Promise.all([api.listCards(), api.listBusinesses()]);
     const sorted = sortWallet(cards.map((c) => ({ ...c, goal: c.program.goal })));
     return { cards: sorted as Card[], businesses };
   });
 
-  const open = (c: Card) => router.push({ pathname: '/card/[id]', params: { id: c.id } });
-  const [first, ...rest] = data?.cards ?? [];
-  const inWallet = new Set(data?.cards.map((c) => c.business.id));
+  const details = (c: Card) => router.push({ pathname: '/card/[id]', params: { id: c.id } });
+  const redeem = (c: Card) => router.push({ pathname: '/redeem/[id]', params: { id: c.id } });
+  const cards = data?.cards ?? [];
+  const inWallet = new Set(cards.map((c) => c.business.id));
   const more = (data?.businesses ?? []).filter((b) => b.program && !inWallet.has(b.id)).slice(0, 4);
 
-  return (
-    <Screen bottom={TAB_CLEARANCE} edgeBottom={false}>
+  const heading = (
+    <>
       <Heading over={profile?.name ? `${greeting()}, ${profile.name}` : greeting()} title="הכרטיסים שלי" />
       <DemoBanner />
-
-      {!data ? <LoadState loading={loading} error={error} onRetry={reload} /> : null}
-
-      {data && !first ? <EmptyWallet /> : null}
-
-      {first ? (
-        <Reveal>
-          <HeroCard card={first} onPress={() => open(first)} />
-        </Reveal>
-      ) : null}
-
-      {rest.length ? (
-        <View style={{ gap: 8, marginTop: 10 }}>
-          {rest.map((c, i) => (
-            <Reveal key={c.id} delay={60 * (i + 1)}>
-              <CardRow card={c} onPress={() => open(c)} />
-            </Reveal>
-          ))}
-        </View>
-      ) : null}
-
-      {more.length ? (
-        <View style={{ marginTop: 26 }}>
-          <Txt kind="label" size={17} weight={700} style={{ marginBottom: 10 }} accessibilityRole="header">עסקים משתתפים שעוד לא בארנק</Txt>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {more.map((b) => <Chip key={b.id} business={b} />)}
-          </View>
-        </View>
-      ) : null}
-    </Screen>
+    </>
   );
+  const moreSection = more.length ? (
+    <View style={{ marginTop: 26 }}>
+      <Txt kind="label" size={17} weight={700} style={{ marginBottom: 10 }} accessibilityRole="header">עסקים משתתפים שעוד לא בארנק</Txt>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {more.map((b) => <Chip key={b.id} business={b} />)}
+      </View>
+    </View>
+  ) : null;
+
+  // Loading, error and empty states keep the plain scrolling screen.
+  if (!cards.length) {
+    return (
+      <Screen bottom={TAB_CLEARANCE} edgeBottom={false}>
+        {heading}
+        {!data ? <LoadState loading={loading} error={error} onRetry={reload} /> : <EmptyWallet />}
+        {moreSection}
+      </Screen>
+    );
+  }
+
+  const header = <View style={{ paddingTop: 8, paddingHorizontal: gutter, paddingBottom: 4 }}>{heading}</View>;
+  const footer = moreSection ? <View style={{ paddingHorizontal: gutter }}>{moreSection}</View> : null;
+
+  // With TalkBack on, the same cards in a plain list: no gestures needed to reach each one.
+  if (screenReader) return <WalletList cards={cards} header={header} footer={footer} onDetails={details} />;
+
+  return <WalletStack cards={cards} header={header} footer={footer} onDetails={details} onRedeem={redeem} onScan={() => router.push('/scan')} />;
 }
 
 function Chip({ business }: { business: Business }) {

@@ -6,8 +6,6 @@ import { AuthError, NetworkError, type Backend } from './backend';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
 import type { Business, Card, CollectResponse, Profile, Program, Redemption, RedeemResponse, StampEvent } from './types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- rows are mapped field by field below */
-
 const client = () =>
   createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
