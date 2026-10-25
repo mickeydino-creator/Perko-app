@@ -1,0 +1,23 @@
+[
+  {
+    "slug": "example-cafe",
+    "name": "שם העסק",
+    "kind": "בית קפה שכונתי",
+    "category": "cafe",
+    "initial": "ש",
+    "tone": "lime",
+    "address": "רחוב ומספר, ירושלים",
+    "hours": "א׳-ה׳ 7:00-19:00, ו׳ 7:00-14:00",
+    "website": null,
+    "program": {
+      "name": "כרטיס קפה",
+      "type": "stamps",
+      "goal": 10,
+      "step": 1,
+      "reward": "קפה הפוך עלינו",
+      "rule": "חותמת על כל משקה חם",
+      "redeem_rule": "בקופה, מול הצוות",
+      "cooldown_minutes": 120
+    }
+  }
+]

@@ -1,0 +1,46 @@
+# Supabase CLI config for Perko (local development and `supabase link`). Unlisted keys use CLI defaults.
+project_id = "perko"
+
+[api]
+schemas = ["public"]
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+site_url = "perko://"
+enable_signup = true
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = true
+max_frequency = "30s"
+otp_length = 6
+otp_expiry = 300
+# Local testing without an SMS provider: this number always accepts this code. Remove for production.
+[auth.sms.test_otp]
+972500000000 = "123456"
+
+# Production: configure the SMS provider (Twilio, MessageBird, Vonage or Textlocal) in the dashboard,
+# Authentication > Providers > Phone. Example for Twilio (secrets via env, never committed):
+# [auth.sms.twilio]
+# enabled = true
+# account_sid = "env(TWILIO_ACCOUNT_SID)"
+# message_service_sid = "env(TWILIO_MESSAGE_SERVICE_SID)"
+# auth_token = "env(TWILIO_AUTH_TOKEN)"
+
+[auth.email]
+enable_signup = false
+
+[functions.collect]
+verify_jwt = true
+
+[functions.redeem]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
