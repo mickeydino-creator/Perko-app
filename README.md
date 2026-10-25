@@ -11,7 +11,7 @@ Perko is in early access. The five businesses in the seed and in demo mode are *
 marketing site, labelled "לדוגמה" in the app. None of them is a participant. The prospects in
 `research/prospects.json` (Perko-marketing repo) are deliberately not in the app or the seed: none has agreed to participate.
 
-- Android only (iOS later; the code has no platform-specific paths beyond Android system bars).
+- iOS and Android (bundle id / package `org.perko.app`). Android-only extras: navigation-bar style and the back button.
 - Hebrew only, right-to-left. Light mode only, whatever the phone's setting.
 - QR collection only (no NFC in v1).
 
@@ -168,6 +168,12 @@ npm run admin -- qr:render --id <uuid> --name "שם העסק"         # offline 
 Each code is written to `scripts/out/<slug>/` as a PNG (1200 px) and an A6 PDF counter card (lime, wordmark,
 business name, vector QR, "סורקים כאן אחרי רכישה מזכה"). Print at 100% scale. Businesses created by the script
 are not marked as samples; only add a business after it has agreed to take part.
+
+## Running on iOS
+
+Expo Go on an iPhone runs the app as is. For a build: `npx eas-cli@latest build -p ios --profile preview`
+(needs an Apple Developer account; EAS creates the certificates). As on Android, the RTL layout is only reliable
+in a build, not in Expo Go.
 
 ## Running on Android
 

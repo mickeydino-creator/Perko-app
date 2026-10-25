@@ -82,7 +82,7 @@ export function WalletCardFace({ card, width }: { card: Card; width: number }) {
       }}
     >
       <View style={{ flex: 1, borderRadius: CARD_RADIUS, overflow: 'hidden' }}>
-        {/* Cropped disc in the far corner (left in RTL), behind everything. */}
+        {/* Cropped disc in the far corner (the end side: left in RTL), behind everything. */}
         <View
           style={{
             position: 'absolute',
@@ -90,7 +90,7 @@ export function WalletCardFace({ card, width }: { card: Card; width: number }) {
             height: height * 1.15,
             borderRadius: height,
             backgroundColor: face.disc,
-            left: -height * 0.42,
+            end: -height * 0.42,
             bottom: -height * 0.5,
           }}
         />

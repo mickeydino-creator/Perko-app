@@ -127,10 +127,12 @@ function Frame() {
   const w = 5;
   return (
     <View style={{ width: FRAME, height: FRAME }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[c, { top: 0, right: 0, borderTopWidth: w, borderRightWidth: w, borderTopRightRadius: 18 }]} />
-      <View style={[c, { top: 0, left: 0, borderTopWidth: w, borderLeftWidth: w, borderTopLeftRadius: 18 }]} />
-      <View style={[c, { bottom: 0, right: 0, borderBottomWidth: w, borderRightWidth: w, borderBottomRightRadius: 18 }]} />
-      <View style={[c, { bottom: 0, left: 0, borderBottomWidth: w, borderLeftWidth: w, borderBottomLeftRadius: 18 }]} />
+      {/* Logical sides (start/end) only: position, border and radius flip together in RTL, so every
+          corner stays pointing inward on iOS and Android whatever the layout direction. */}
+      <View style={[c, { top: 0, start: 0, borderTopWidth: w, borderStartWidth: w, borderTopStartRadius: 18 }]} />
+      <View style={[c, { top: 0, end: 0, borderTopWidth: w, borderEndWidth: w, borderTopEndRadius: 18 }]} />
+      <View style={[c, { bottom: 0, start: 0, borderBottomWidth: w, borderStartWidth: w, borderBottomStartRadius: 18 }]} />
+      <View style={[c, { bottom: 0, end: 0, borderBottomWidth: w, borderEndWidth: w, borderBottomEndRadius: 18 }]} />
     </View>
   );
 }

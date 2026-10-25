@@ -9,7 +9,16 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#EBECE4",
     "primaryColor": "#11130F",
-    "platforms": ["android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "ios": {
+      "bundleIdentifier": "org.perko.app",
+      "buildNumber": "1",
+      "supportsTablet": false
+    },
     "android": {
       "package": "org.perko.app",
       "versionCode": 1,
@@ -19,8 +28,12 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "permissions": ["android.permission.CAMERA"],
-      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -37,12 +50,22 @@
           "backgroundColor": "#D7FF35",
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
-          "android": { "backgroundColor": "#D7FF35", "image": "./assets/splash-icon.png", "imageWidth": 160 }
+          "android": {
+            "backgroundColor": "#D7FF35",
+            "image": "./assets/splash-icon.png",
+            "imageWidth": 160
+          }
         }
       ],
       "expo-status-bar",
       "expo-secure-store",
-      ["expo-localization", { "supportsRTL": true, "forcesRTL": true }],
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true,
+          "forcesRTL": true
+        }
+      ],
       "expo-web-browser",
       [
         "expo-camera",
@@ -52,9 +75,17 @@
           "barcodeScannerEnabled": true
         }
       ],
-      ["expo-navigation-bar", { "style": "dark", "enforceContrast": false }],
+      [
+        "expo-navigation-bar",
+        {
+          "style": "dark",
+          "enforceContrast": false
+        }
+      ],
       "expo-system-ui"
     ],
-    "experiments": { "typedRoutes": true }
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

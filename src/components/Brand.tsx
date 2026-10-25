@@ -13,33 +13,28 @@ export function Wordmark({ size = 30, tone = 'ink' }: { size?: number; tone?: 'i
   const disc = tone === 'ink' ? colors.ink : colors.lime;
   const d = size * 0.5;
   return (
-    <View
+    <Txt
+      size={size}
+      weight={800}
+      color={letters}
       accessible
       accessibilityRole="image"
       accessibilityLabel="Perko"
-      // The wordmark is Latin: keep it left-to-right inside the RTL layout.
-      style={{ flexDirection: 'row', direction: 'ltr', alignItems: 'flex-end', alignSelf: 'flex-start' }}
+      style={{
+        fontFamily: fonts[800],
+        letterSpacing: -0.055 * size,
+        lineHeight: size * 1.05,
+        includeFontPadding: false,
+        alignSelf: 'flex-start',
+        // The wordmark is Latin: left to right inside the RTL layout.
+        writingDirection: 'ltr',
+      }}
     >
-      <Txt
-        size={size}
-        weight={800}
-        color={letters}
-        style={{ fontFamily: fonts[800], letterSpacing: -0.055 * size, lineHeight: size * 1.05, includeFontPadding: false }}
-      >
-        perk
-      </Txt>
-      <View
-        style={{
-          width: d,
-          height: d,
-          borderRadius: d / 2,
-          backgroundColor: disc,
-          marginLeft: size * 0.035,
-          // sit on the baseline like the "o" of the site (translateY(0.015em) above the descender space)
-          marginBottom: size * 0.255,
-        }}
-      />
-    </View>
+      perk
+      {/* The "o" is a view inside the text: iOS, Android and web all set its bottom on the baseline,
+          like the inline-block disc of the website, whatever the font metrics. */}
+      <View style={{ width: d, height: d, borderRadius: d / 2, backgroundColor: disc, transform: [{ translateY: -0.015 * size }] }} />
+    </Txt>
   );
 }
 
