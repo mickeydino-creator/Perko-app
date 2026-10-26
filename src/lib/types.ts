@@ -52,7 +52,10 @@ export type StampEvent = { id: string; amount: number; source: 'qr' | 'nfc'; cre
 
 export type Redemption = { id: string; reward: string; businessName: string; createdAt: string };
 
-export type Profile = { id: string; phone: string; name: string | null };
+export type Profile = { id: string; phone: string; email: string | null; name: string | null };
+
+/** How the user signs in: a code by SMS, or (for now, until SMS is set up) a code by email. */
+export type SignInTarget = { kind: 'phone'; phone: string } | { kind: 'email'; email: string };
 
 export const categoryLabels: Record<Category | 'all', string> = {
   all: 'הכל',

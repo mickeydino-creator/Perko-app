@@ -68,7 +68,7 @@ export function createSupabaseBackend(): Backend {
 
   const profileOf = async (user: User): Promise<Profile> => {
     const { data } = await sb.from('profiles').select('name').eq('id', user.id).maybeSingle();
-    return { id: user.id, phone: user.phone ? `+${user.phone.replace(/^\+/, '')}` : '', name: data?.name ?? null };
+    return { id: user.id, phone: user.phone ? `+${user.phone.replace(/^\+/, '')}` : '', email: user.email ?? null, name: data?.name ?? null };
   };
 
   const check = <T>(res: { data: T; error: any }): T => {
@@ -100,15 +100,20 @@ export function createSupabaseBackend(): Backend {
   return {
     mode: 'supabase',
 
-    async sendCode(phone) {
-      const { error } = await sb.auth.signInWithOtp({ phone });
+    async sendCode(target) {
+      // Email: the Magic Link (and Confirm signup) templates must contain {{ .Token }} so a code is sent, not a link.
+      const { error } = await sb.auth.signInWithOtp(
+        target.kind === 'phone' ? { phone: target.phone } : { email: target.email, options: { shouldCreateUser: true } },
+      );
       if (error) {
         if (error.status === 0 || /fetch/i.test(error.message)) throw new NetworkError(error.message);
         throw new Error(error.message);
       }
     },
-    async verifyCode(phone, token) {
-      const { data, error } = await sb.auth.verifyOtp({ phone, token, type: 'sms' });
+    async verifyCode(target, token) {
+      const { data, error } = await sb.auth.verifyOtp(
+        target.kind === 'phone' ? { phone: target.phone, token, type: 'sms' } : { email: target.email, token, type: 'email' },
+      );
       if (error || !data.user) throw new AuthError(error?.message ?? 'otp');
       await sb.from('profiles').upsert({ id: data.user.id }, { onConflict: 'id', ignoreDuplicates: true });
       return profileOf(data.user);

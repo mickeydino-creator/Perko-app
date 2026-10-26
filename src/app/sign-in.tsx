@@ -1,7 +1,7 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
-import { formatIsraeliPhone, normalizeIsraeliPhone } from '../../supabase/functions/_shared/loyalty.ts';
+import { formatIsraeliPhone, normalizeEmail, normalizeIsraeliPhone } from '../../supabase/functions/_shared/loyalty.ts';
 import { Wordmark } from '../components/Brand';
 import { Txt } from '../components/Txt';
 import { Button, DemoBanner, Screen, TopBar } from '../components/ui';
@@ -9,14 +9,37 @@ import { api } from '../lib/api';
 import { NetworkError } from '../lib/backend';
 import { DEMO } from '../lib/config';
 import { useSession } from '../lib/session';
+import type { SignInTarget } from '../lib/types';
 import { colors, fonts, radius, touch } from '../theme';
 
 const RESEND_SECONDS = 30;
 
+type Method = 'email' | 'phone';
+
+const copy = {
+  email: {
+    title: 'כניסה עם\nאימייל',
+    lead: 'נשלח קוד חד-פעמי למייל. הכתובת משמשת רק לכניסה לחשבון.',
+    codeTitle: 'הקוד שקיבלתם\nבמייל',
+    codeLead: (to: string) => `שלחנו קוד אל ${to}. אם הוא לא מגיע, כדאי לבדוק גם בספאם.`,
+    invalid: 'כתובת אימייל, למשל noa@example.com',
+  },
+  phone: {
+    title: 'כניסה עם\nמספר טלפון',
+    lead: 'נשלח קוד חד-פעמי ב-SMS. המספר משמש רק לכניסה לחשבון.',
+    codeTitle: 'הקוד שקיבלתם\nב-SMS',
+    codeLead: (to: string) => `שלחנו קוד בן 6 ספרות אל ${to}.`,
+    invalid: 'מספר נייד ישראלי, למשל 050-123-4567',
+  },
+} as const;
+
 export default function SignIn() {
   const { setProfile, onboarded } = useSession();
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
+  // Email first for now: SMS needs a paid provider before the pilot.
+  const [method, setMethod] = useState<Method>('email');
+  const [step, setStep] = useState<'enter' | 'code'>('enter');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,22 +47,28 @@ export default function SignIn() {
   const codeRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   const e164 = normalizeIsraeliPhone(phone);
+  const mail = normalizeEmail(email);
+  const target: SignInTarget | null =
+    method === 'phone' ? (e164 ? { kind: 'phone', phone: e164 } : null) : mail ? { kind: 'email', email: mail } : null;
+  // SMS codes are 6 digits; email codes are 6 by default but the project can set up to 10.
+  const codeMax = method === 'phone' ? 6 : 10;
+  const t = copy[method];
 
   useEffect(() => {
     if (wait <= 0) return;
-    const t = setTimeout(() => setWait(wait - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setWait(wait - 1), 1000);
+    return () => clearTimeout(timer);
   }, [wait]);
 
   const send = async () => {
-    if (!e164) {
-      setError('מספר נייד ישראלי, למשל 050-123-4567');
+    if (!target) {
+      setError(t.invalid);
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      await api.sendCode(e164);
+      await api.sendCode(target);
       setStep('code');
       setCode('');
       setWait(RESEND_SECONDS);
@@ -52,11 +81,11 @@ export default function SignIn() {
   };
 
   const verify = async (value = code) => {
-    if (!e164 || value.length !== 6) return;
+    if (!target || value.length < 6) return;
     setBusy(true);
     setError(null);
     try {
-      const p = await api.verifyCode(e164, value);
+      const p = await api.verifyCode(target, value);
       setProfile(p);
       router.replace('/');
     } catch {
@@ -65,56 +94,81 @@ export default function SignIn() {
     }
   };
 
+  const switchTo = (m: Method) => {
+    setMethod(m);
+    setError(null);
+  };
+
   // First launch: the short introduction comes before the sign-in.
   if (!onboarded) return <Redirect href="/onboarding" />;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.lime }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Screen bg={colors.lime}>
-        {step === 'code' ? <TopBar onBack={() => setStep('phone')} /> : <View style={{ height: touch, justifyContent: 'center' }}><Wordmark size={30} /></View>}
-        <View style={{ gap: 12, marginTop: 28, marginBottom: 28 }}>
-          <Txt kind="display" accessibilityRole="header">{step === 'phone' ? 'כניסה עם\nמספר טלפון' : 'הקוד שקיבלתם\nב-SMS'}</Txt>
+        {step === 'code' ? <TopBar onBack={() => setStep('enter')} /> : <View style={{ height: touch, justifyContent: 'center' }}><Wordmark size={30} /></View>}
+        <View style={{ gap: 12, marginTop: 28, marginBottom: 24 }}>
+          <Txt kind="display" accessibilityRole="header">{step === 'enter' ? t.title : t.codeTitle}</Txt>
           <Txt kind="lead" color={colors.muted}>
-            {step === 'phone'
-              ? 'נשלח קוד חד-פעמי ב-SMS. המספר משמש רק לכניסה לחשבון.'
-              : `שלחנו קוד בן 6 ספרות אל ${e164 ? formatIsraeliPhone(e164) : ''}.`}
+            {step === 'enter' ? t.lead : t.codeLead(target?.kind === 'phone' ? formatIsraeliPhone(target.phone) : (target?.email ?? ''))}
           </Txt>
         </View>
 
         <DemoBanner />
         {DEMO && step === 'code' ? <Txt kind="small" color={colors.muted} style={{ marginTop: -4, marginBottom: 12 }}>במצב הדגמה כל קוד בן 6 ספרות מתקבל.</Txt> : null}
 
-        {step === 'phone' ? (
-          <Field
-            label="מספר נייד"
-            value={phone}
-            onChangeText={(t) => {
-              setPhone(t);
-              setError(null);
-            }}
-            placeholder="050-000-0000"
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            textContentType="telephoneNumber"
-            maxLength={16}
-            onSubmitEditing={send}
-          />
+        {step === 'enter' ? (
+          <>
+            <MethodSwitch method={method} onChange={switchTo} />
+            {method === 'email' ? (
+              <Field
+                label="אימייל"
+                value={email}
+                onChangeText={(v) => {
+                  setEmail(v);
+                  setError(null);
+                }}
+                placeholder="name@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                maxLength={254}
+                onSubmitEditing={send}
+              />
+            ) : (
+              <Field
+                label="מספר נייד"
+                value={phone}
+                onChangeText={(v) => {
+                  setPhone(v);
+                  setError(null);
+                }}
+                placeholder="050-000-0000"
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                textContentType="telephoneNumber"
+                maxLength={16}
+                onSubmitEditing={send}
+              />
+            )}
+          </>
         ) : (
           <Field
             ref={codeRef}
             label="קוד אימות"
             value={code}
-            onChangeText={(t) => {
-              const digits = t.replace(/\D/g, '').slice(0, 6);
+            onChangeText={(v) => {
+              const digits = v.replace(/\D/g, '').slice(0, codeMax);
               setCode(digits);
               setError(null);
-              if (digits.length === 6) verify(digits);
+              if (digits.length === codeMax) verify(digits);
             }}
             placeholder="000000"
             keyboardType="number-pad"
-            autoComplete="sms-otp"
+            autoComplete={method === 'phone' ? 'sms-otp' : 'one-time-code'}
             textContentType="oneTimeCode"
-            maxLength={6}
+            maxLength={codeMax}
             big
           />
         )}
@@ -126,11 +180,11 @@ export default function SignIn() {
         ) : null}
 
         <View style={{ marginTop: 24, gap: 8 }}>
-          {step === 'phone' ? (
+          {step === 'enter' ? (
             <Button label="שליחת קוד" onPress={send} busy={busy} />
           ) : (
             <>
-              <Button label="כניסה" onPress={() => verify()} busy={busy} disabled={code.length !== 6} />
+              <Button label="כניסה" onPress={() => verify()} busy={busy} disabled={code.length < 6} />
               <Pressable
                 onPress={wait > 0 ? undefined : send}
                 accessibilityRole="button"
@@ -148,6 +202,33 @@ export default function SignIn() {
         </Txt>
       </Screen>
     </KeyboardAvoidingView>
+  );
+}
+
+/** Two-option pill switch: email or phone. */
+function MethodSwitch({ method, onChange }: { method: Method; onChange: (m: Method) => void }) {
+  const options: { id: Method; label: string }[] = [
+    { id: 'email', label: 'אימייל' },
+    { id: 'phone', label: 'טלפון' },
+  ];
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'flex-start', backgroundColor: colors.inkOnLime14, borderRadius: radius.pill, padding: 4, marginBottom: 16 }}>
+      {options.map((o) => {
+        const on = o.id === method;
+        return (
+          <Pressable
+            key={o.id}
+            onPress={() => onChange(o.id)}
+            accessibilityRole="tab"
+            accessibilityLabel={`כניסה עם ${o.label}`}
+            accessibilityState={{ selected: on }}
+            style={{ minHeight: touch - 4, minWidth: 96, paddingHorizontal: 18, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.ink : 'transparent' }}
+          >
+            <Txt kind="label" weight={700} color={on ? colors.lime : colors.ink}>{o.label}</Txt>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 

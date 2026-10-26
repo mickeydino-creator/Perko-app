@@ -126,12 +126,14 @@ export function createDemoBackend(): Backend {
     async sendCode() {
       await delay();
     },
-    async verifyCode(phone, code) {
+    async verifyCode(target, code) {
       await delay();
-      if (!/^\d{6}$/.test(code)) throw new AuthError('otp');
+      if (!/^\d{6,10}$/.test(code)) throw new AuthError('otp');
       const s = await load();
-      if (!s.profile || s.profile.phone !== phone) {
-        Object.assign(s, { ...empty, profile: { id: 'demo-user', phone, name: null }, ...starterWallet() });
+      const phone = target.kind === 'phone' ? target.phone : '';
+      const email = target.kind === 'email' ? target.email : null;
+      if (!s.profile || s.profile.phone !== phone || (s.profile.email ?? null) !== email) {
+        Object.assign(s, { ...empty, profile: { id: 'demo-user', phone, email, name: null }, ...starterWallet() });
       }
       await save();
       return s.profile!;

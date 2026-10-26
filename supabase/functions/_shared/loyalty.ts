@@ -124,6 +124,12 @@ export function normalizeIsraeliPhone(input: string): string | null {
   return '+972' + digits.slice(1);
 }
 
+/** Trim and lower-case an email address. Returns null when it does not look like one. */
+export function normalizeEmail(input: string): string | null {
+  const v = input.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) && v.length <= 254 ? v : null;
+}
+
 /** Show an E.164 Israeli number the local way: 050-123-4567. */
 export function formatIsraeliPhone(e164: string): string {
   const local = e164.startsWith('+972') ? '0' + e164.slice(4) : e164;

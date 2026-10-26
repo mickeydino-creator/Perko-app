@@ -7,6 +7,7 @@ import {
   durationLabel,
   formatIsraeliPhone,
   isRateLimited,
+  normalizeEmail,
   normalizeIsraeliPhone,
   progress,
   remaining,
@@ -106,6 +107,13 @@ test('only a complete card can be redeemed', () => {
   assert.equal(canRedeem({ status: 'complete', current: 10 }, coffee), true);
   assert.equal(canRedeem({ status: 'active', current: 9 }, coffee), false);
   assert.equal(canRedeem({ status: 'redeemed', current: 10 }, coffee), false);
+});
+
+test('email addresses', () => {
+  assert.equal(normalizeEmail('  Noa@Example.co.il '), 'noa@example.co.il');
+  assert.equal(normalizeEmail('noa@example'), null);
+  assert.equal(normalizeEmail('noa example.com'), null);
+  assert.equal(normalizeEmail('@example.com'), null);
 });
 
 test('Israeli mobile numbers', () => {

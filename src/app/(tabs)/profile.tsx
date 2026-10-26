@@ -73,8 +73,8 @@ export default function Profile() {
           <Button label={saved ? 'נשמר' : 'שמירה'} small onPress={saveName} disabled={saved || (name.trim() || null) === (profile?.name ?? null)} style={{ alignSelf: 'flex-start' }} />
         </View>
         <View style={{ gap: 2 }}>
-          <Txt kind="label">טלפון</Txt>
-          <Txt size={17} style={{ writingDirection: 'ltr' }}>{profile?.phone ? formatIsraeliPhone(profile.phone) : ''}</Txt>
+          <Txt kind="label">{profile?.phone ? 'טלפון' : 'אימייל'}</Txt>
+          <Txt size={17} style={{ writingDirection: 'ltr' }}>{profile?.phone ? formatIsraeliPhone(profile.phone) : (profile?.email ?? '')}</Txt>
         </View>
       </View>
 
