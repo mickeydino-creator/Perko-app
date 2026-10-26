@@ -7,7 +7,7 @@ import { Txt } from '../components/Txt';
 import { Button, DemoBanner, Screen, TopBar } from '../components/ui';
 import { api } from '../lib/api';
 import { NetworkError } from '../lib/backend';
-import { DEMO } from '../lib/config';
+import { DEMO, PHONE_SIGN_IN } from '../lib/config';
 import { useSession } from '../lib/session';
 import type { SignInTarget } from '../lib/types';
 import { colors, fonts, radius, touch } from '../theme';
@@ -35,7 +35,7 @@ const copy = {
 
 export default function SignIn() {
   const { setProfile, onboarded } = useSession();
-  // Email first for now: SMS needs a paid provider before the pilot.
+  // Email only for now (PHONE_SIGN_IN): SMS needs a paid provider before the pilot.
   const [method, setMethod] = useState<Method>('email');
   const [step, setStep] = useState<'enter' | 'code'>('enter');
   const [phone, setPhone] = useState('');
@@ -118,7 +118,7 @@ export default function SignIn() {
 
         {step === 'enter' ? (
           <>
-            <MethodSwitch method={method} onChange={switchTo} />
+            {PHONE_SIGN_IN ? <MethodSwitch method={method} onChange={switchTo} /> : null}
             {method === 'email' ? (
               <Field
                 label="אימייל"
