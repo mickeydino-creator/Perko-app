@@ -77,7 +77,8 @@ function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
       {item(1)}
       <Pressable
         onPress={() => router.push('/scan')}
-        accessibilityRole="button"
+        accessibilityRole="tab"
+        accessibilityState={{ selected: false }}
         accessibilityLabel="סריקת קוד בקופה"
         accessibilityHint="פותח את המצלמה לסריקת קוד ה-QR של העסק"
         style={{ flex: 1, alignItems: 'center', gap: 3, paddingBottom: 4 }}

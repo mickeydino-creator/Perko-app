@@ -1,5 +1,6 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { formatIsraeliPhone, normalizeEmail, normalizeIsraeliPhone } from '../../supabase/functions/_shared/loyalty.ts';
 import { Wordmark } from '../components/Brand';
@@ -8,7 +9,7 @@ import { Button, DemoBanner, Screen, TopBar } from '../components/ui';
 import { useTheme } from '../lib/appearance';
 import { api } from '../lib/api';
 import { NetworkError } from '../lib/backend';
-import { DEMO, EMAIL_CODE_LENGTH, PHONE_SIGN_IN } from '../lib/config';
+import { DEMO, EMAIL_CODE_LENGTH, PHONE_SIGN_IN, PRIVACY_POLICY_URL, TERMS_URL } from '../lib/config';
 import { useSession } from '../lib/session';
 import type { SignInTarget } from '../lib/types';
 import { fonts, radius, touch } from '../theme';
@@ -200,10 +201,27 @@ export default function SignIn() {
         </View>
 
         <Txt kind="small" color={t.onHeroMuted} style={{ marginTop: 24 }}>
-          בכניסה אתם מאשרים את מדיניות הפרטיות. Perko בשלב גישה מוקדמת.
+          הכתובת או המספר משמשים רק לכניסה לחשבון ולשליחת קוד חד-פעמי, ונשמרים אצל ספק הענן שלנו. בכניסה אתם מאשרים את{' '}
+          <LegalLink label="תנאי השימוש" url={TERMS_URL} /> ואת <LegalLink label="מדיניות הפרטיות" url={PRIVACY_POLICY_URL} />. Perko בשלב גישה מוקדמת.
         </Txt>
       </Screen>
     </KeyboardAvoidingView>
+  );
+}
+
+function LegalLink({ label, url }: { label: string; url: string | null }) {
+  const { t } = useTheme();
+  if (!url) return <>{label}</>;
+  return (
+    <Txt
+      kind="small"
+      color={t.onHero}
+      onPress={() => WebBrowser.openBrowserAsync(url)}
+      accessibilityRole="link"
+      style={{ textDecorationLine: 'underline' }}
+    >
+      {label}
+    </Txt>
   );
 }
 

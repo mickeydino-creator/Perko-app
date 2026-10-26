@@ -10,7 +10,7 @@ import { Button, DemoBanner, Heading, Screen } from '../../components/ui';
 import { useTheme, type Appearance } from '../../lib/appearance';
 import { api } from '../../lib/api';
 import { NetworkError } from '../../lib/backend';
-import { PRIVACY_POLICY_URL } from '../../lib/config';
+import { ACCESSIBILITY_URL, PRIVACY_POLICY_URL, TERMS_URL } from '../../lib/config';
 import { useSession } from '../../lib/session';
 import { fonts, radius, TAB_CLEARANCE, touch } from '../../theme';
 
@@ -90,6 +90,8 @@ export default function Profile() {
           note={PRIVACY_POLICY_URL ? undefined : 'תפורסם לפני הפיילוט'}
           onPress={PRIVACY_POLICY_URL ? () => WebBrowser.openBrowserAsync(PRIVACY_POLICY_URL!) : undefined}
         />
+        {TERMS_URL ? <Row label="תנאי שימוש" onPress={() => WebBrowser.openBrowserAsync(TERMS_URL!)} /> : null}
+        {ACCESSIBILITY_URL ? <Row label="הצהרת נגישות" onPress={() => WebBrowser.openBrowserAsync(ACCESSIBILITY_URL!)} /> : null}
         <Row label="יציאה מהחשבון" onPress={signOut} />
       </View>
 
@@ -137,6 +139,7 @@ function AppearancePicker() {
               onPress={() => setAppearance(o.id)}
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
+              aria-checked={on}
               accessibilityLabel={`מראה: ${o.label}`}
               style={{ flex: 1, minHeight: touch - 4, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.accent : 'transparent' }}
             >

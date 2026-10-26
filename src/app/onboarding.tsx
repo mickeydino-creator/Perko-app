@@ -68,7 +68,7 @@ export default function Onboarding() {
           </Txt>
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', gap: 8 }} accessible accessibilityLabel={`מסך ${i + 1} מתוך ${slides.length}`}>
+          <View style={{ flexDirection: 'row', gap: 8 }} accessible accessibilityRole="image" accessibilityLabel={`מסך ${i + 1} מתוך ${slides.length}`}>
             {slides.map((_, n) => (
               <View key={n} style={{ width: n === i ? 22 : 8, height: 8, borderRadius: 4, backgroundColor: n === i ? t.accent : t.heroTint }} />
             ))}
