@@ -101,7 +101,7 @@ export default function Discover() {
                   <Txt size={14} weight={600}>{programLine(b)}</Txt>
                 </View>
               </Pressable>
-              <View style={{ paddingEnd: 12 }}>
+              <View style={{ paddingHorizontal: 12, flexShrink: 0 }}>
                 {added ? (
                   <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.pale }}>
                     <Txt size={14} weight={700} color={colors.muted}>בארנק</Txt>
