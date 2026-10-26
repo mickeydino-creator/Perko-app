@@ -100,8 +100,6 @@ function Routes() {
           <Stack.Screen name="redeem/[id]" options={{ contentStyle: { backgroundColor: t.surface } }} />
           <Stack.Screen name="c/[token]" />
         </Stack.Protected>
-        {/* OAuth return address: open to everyone, it only redirects. */}
-        <Stack.Screen name="auth/callback" />
       </Stack>
     </>
   );

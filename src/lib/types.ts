@@ -55,9 +55,6 @@ export type Redemption = { id: string; reward: string; businessName: string; cre
 export type Profile = { id: string; phone: string; email: string | null; name: string | null };
 
 /** How the user signs in: a code by SMS, or (for now, until SMS is set up) a code by email. */
-/** Social sign-in providers (browser flow via Supabase). Apple waits for an Apple Developer account. */
-export type OAuthProvider = 'google' | 'apple';
-
 export type SignInTarget = { kind: 'phone'; phone: string } | { kind: 'email'; email: string };
 
 export const categoryLabels: Record<Category | 'all', string> = {

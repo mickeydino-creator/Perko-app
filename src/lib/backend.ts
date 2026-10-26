@@ -1,5 +1,5 @@
 // The data layer the screens talk to. Two implementations: Supabase (real) and demo (local sample data).
-import type { Business, Card, CollectResponse, CollectSource, OAuthProvider, Profile, Redemption, RedeemResponse, SignInTarget, StampEvent } from './types';
+import type { Business, Card, CollectResponse, CollectSource, Profile, Redemption, RedeemResponse, SignInTarget, StampEvent } from './types';
 
 export type AuthListener = (profile: Profile | null) => void;
 
@@ -9,8 +9,6 @@ export interface Backend {
   // Auth: a one-time code by SMS (phone) or by email
   sendCode(target: SignInTarget): Promise<void>;
   verifyCode(target: SignInTarget, code: string): Promise<Profile>;
-  /** Opens the provider's sign-in page in the in-app browser. Resolves null when the user closes it. */
-  signInWithProvider(provider: OAuthProvider): Promise<Profile | null>;
   currentProfile(): Promise<Profile | null>;
   onAuthChange(listener: AuthListener): () => void;
   signOut(): Promise<void>;

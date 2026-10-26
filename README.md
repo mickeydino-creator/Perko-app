@@ -100,19 +100,6 @@ npx expo-doctor
 5. App config: copy `.env.example` to `.env` and set `EXPO_PUBLIC_SUPABASE_URL` and
    `EXPO_PUBLIC_SUPABASE_ANON_KEY` (Project settings → API). Restart `npx expo start`.
 
-### Google sign-in (and Apple later)
-
-The sign-in screen leads with "המשך עם Google", then email as the second option. It uses Supabase's browser flow
-(`signInWithOAuth` + `expo-web-browser`), so it works on iOS and Android and in Expo Go.
-
-1. Google Cloud Console → APIs & Services → OAuth consent screen (External), then Credentials → Create OAuth client
-   ID → **Web application**, with authorised redirect URI `https://<ref>.supabase.co/auth/v1/callback`.
-2. Supabase → Authentication → Sign In / Providers → Google: enable, paste the client ID and secret.
-3. Supabase → Authentication → URL Configuration → Redirect URLs: add `perko://**` (builds) and `exp://**` (Expo Go).
-
-Apple: `APPLE_SIGN_IN` in `src/lib/config.ts` turns the button on once Sign in with Apple is configured in Supabase
-(needs an Apple Developer account). The App Store requires it whenever Google sign-in is offered on iOS.
-
 ### Email sign-in (until SMS is set up)
 
 The sign-in screen offers email (default for now) or phone. Both use a one-time code (`signInWithOtp` /
