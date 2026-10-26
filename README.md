@@ -97,6 +97,20 @@ npx expo-doctor
 5. App config: copy `.env.example` to `.env` and set `EXPO_PUBLIC_SUPABASE_URL` and
    `EXPO_PUBLIC_SUPABASE_ANON_KEY` (Project settings → API). Restart `npx expo start`.
 
+### Setting up from the Supabase website only (no terminal)
+
+Everything above can also be done in the dashboard:
+
+1. **Schema and sample data:** SQL Editor → paste `supabase/migrations/20261025120000_init.sql` → Run, then the same with
+   `supabase/seed.sql`.
+2. **Secrets:** Edge Functions → Secrets → add `QR_SECRET_V1` and `REDEEM_SECRET`.
+3. **Functions:** Edge Functions → Deploy a new function → Via Editor, once per function, named exactly `collect`,
+   `redeem` and `delete-account`; paste the matching single file from `supabase/dashboard/` (generated from
+   `supabase/functions` by `node scripts/build-dashboard-functions.ts`; regenerate after any change there).
+   Keep "Verify JWT" on.
+4. **A counter QR code:** SQL Editor → paste `supabase/dashboard/create-qr.sql`, put in the `QR_SECRET_V1` value and
+   the business slug → Run. The result is the text of the QR code; turn it into an image with any QR generator.
+
 Local stack instead (needs Docker): `npx supabase start`, then `npx supabase db reset` (migration + seed) and
 `npx supabase functions serve --env-file supabase/functions/.env`. The test number `972500000000` / code
 `123456` from `config.toml` signs in without SMS.

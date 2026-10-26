@@ -4,8 +4,22 @@
     "strict": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["node_modules", "supabase/functions/collect", "supabase/functions/redeem", "supabase/functions/delete-account", "supabase/functions/_shared/server.ts"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions/collect",
+    "supabase/functions/redeem",
+    "supabase/functions/delete-account",
+    "supabase/functions/_shared/server.ts",
+    "supabase/dashboard"
+  ]
 }
