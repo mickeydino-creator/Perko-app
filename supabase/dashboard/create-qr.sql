@@ -3,6 +3,7 @@
 -- 2. Replace the slug if needed (sample slugs: cafe-pina, zaatar, dafdouf, hagefen-bakery, pirhei-hasdera).
 -- 3. Run. The result is the text to put in the QR code (perko://c/v1.<id>.<signature>).
 --    Turn it into an image with any QR generator, or with:  npm run admin -- qr:print --business <slug>
+-- If the editor says "function hmac does not exist", write extensions.hmac instead of hmac below.
 -- The signature is the same HMAC as supabase/functions/_shared/token.ts (first 16 bytes, base64url).
 -- Note: the secret stays in this project's SQL history. To avoid that, use scripts/admin.ts instead.
 with params as (
