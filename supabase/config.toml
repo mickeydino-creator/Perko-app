@@ -34,7 +34,18 @@ otp_expiry = 300
 # auth_token = "env(TWILIO_AUTH_TOKEN)"
 
 [auth.email]
-enable_signup = false
+enable_signup = true
+otp_length = 6
+
+# One-time code by email (sign-in until SMS is set up). Hosted projects: paste supabase/templates/otp.html into
+# Authentication > Emails for "Magic Link" and "Confirm signup" (needs custom SMTP).
+[auth.email.template.magic_link]
+subject = "הקוד שלך לכניסה ל-Perko"
+content_path = "./supabase/templates/otp.html"
+
+[auth.email.template.confirmation]
+subject = "הקוד שלך לכניסה ל-Perko"
+content_path = "./supabase/templates/otp.html"
 
 [functions.collect]
 verify_jwt = true

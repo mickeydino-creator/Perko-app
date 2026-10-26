@@ -101,7 +101,8 @@ npx expo-doctor
 
 The sign-in screen offers email (default for now) or phone. Both use a one-time code (`signInWithOtp` /
 `verifyOtp`), no links or deep links. For email, edit the templates in Authentication → Emails so they send a code:
-in **Magic Link** and **Confirm signup**, put `{{ .Token }}` in the body (e.g. `<p>הקוד שלך: {{ .Token }}</p>`).
+in **Magic Link** and **Confirm signup**, paste `supabase/templates/otp.html` (Hebrew, brand design, contains
+`{{ .Token }}`) with the subject "הקוד שלך לכניסה ל-Perko". Editing templates on a hosted project requires custom SMTP.
 Supabase's built-in mail server only delivers to members of the project's organisation and only a few emails an
 hour; for real users set up custom SMTP (Authentication → Emails → SMTP Settings).
 
