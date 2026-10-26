@@ -7,5 +7,8 @@ export const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 /** Sign-in by SMS is hidden until an SMS provider is set up; email codes are the only option for now. */
 export const PHONE_SIGN_IN = false;
 
+/** Must match Authentication > Providers > Email > Email OTP Length in the Supabase project. */
+export const EMAIL_CODE_LENGTH = 6;
+
 export const PRIVACY_POLICY_URL: string | null = null; // TODO before the pilot: the published privacy policy
 export const CONTACT_EMAIL: string | null = null; // TODO before the pilot

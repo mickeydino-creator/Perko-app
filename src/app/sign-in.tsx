@@ -7,7 +7,7 @@ import { Txt } from '../components/Txt';
 import { Button, DemoBanner, Screen, TopBar } from '../components/ui';
 import { api } from '../lib/api';
 import { NetworkError } from '../lib/backend';
-import { DEMO, PHONE_SIGN_IN } from '../lib/config';
+import { DEMO, EMAIL_CODE_LENGTH, PHONE_SIGN_IN } from '../lib/config';
 import { useSession } from '../lib/session';
 import type { SignInTarget } from '../lib/types';
 import { colors, fonts, radius, touch } from '../theme';
@@ -50,8 +50,8 @@ export default function SignIn() {
   const mail = normalizeEmail(email);
   const target: SignInTarget | null =
     method === 'phone' ? (e164 ? { kind: 'phone', phone: e164 } : null) : mail ? { kind: 'email', email: mail } : null;
-  // SMS codes are 6 digits; email codes are 6 by default but the project can set up to 10.
-  const codeMax = method === 'phone' ? 6 : 10;
+  // SMS codes are 6 digits; email codes follow the project's Email OTP Length (EMAIL_CODE_LENGTH).
+  const codeMax = method === 'phone' ? 6 : EMAIL_CODE_LENGTH;
   const t = copy[method];
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export default function SignIn() {
   };
 
   const verify = async (value = code) => {
-    if (!target || value.length < 6) return;
+    if (!target || value.length !== codeMax) return;
     setBusy(true);
     setError(null);
     try {
@@ -164,7 +164,7 @@ export default function SignIn() {
               setError(null);
               if (digits.length === codeMax) verify(digits);
             }}
-            placeholder="000000"
+            placeholder={"0".repeat(codeMax)}
             keyboardType="number-pad"
             autoComplete={method === 'phone' ? 'sms-otp' : 'one-time-code'}
             textContentType="oneTimeCode"
@@ -184,7 +184,7 @@ export default function SignIn() {
             <Button label="שליחת קוד" onPress={send} busy={busy} />
           ) : (
             <>
-              <Button label="כניסה" onPress={() => verify()} busy={busy} disabled={code.length < 6} />
+              <Button label="כניסה" onPress={() => verify()} busy={busy} disabled={code.length !== codeMax} />
               <Pressable
                 onPress={wait > 0 ? undefined : send}
                 accessibilityRole="button"

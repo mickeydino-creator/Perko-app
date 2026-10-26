@@ -7,6 +7,7 @@
 //   npm run admin -- qr:print --business <slug>          (re-renders every active code of the business)
 //   npm run admin -- qr:revoke --id <qr uuid>
 //   npm run admin -- qr:render --id <uuid> --name "<business name>"   (offline: no database, secret only)
+//   npm run admin -- qr:from-payload --payload "perko://c/v1...." --name "<business name>"   (no secret: renders a signed code)
 //
 // Env (.env, never committed): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, QR_SECRET_V1 (QR_KEY_VERSION, default 1).
 // Output: scripts/out/<slug>/<qr id>.png and .pdf (A6 counter card).
@@ -16,11 +17,11 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { PDFDocument, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
-import { signQrPayload } from '../supabase/functions/_shared/token.ts';
+import { parseQrPayload, signQrPayload } from '../supabase/functions/_shared/token.ts';
 
 const { positionals, values: args } = parseArgs({
   allowPositionals: true,
-  options: { file: { type: 'string' }, business: { type: 'string' }, label: { type: 'string' }, id: { type: 'string' }, name: { type: 'string' } },
+  options: { file: { type: 'string' }, business: { type: 'string' }, label: { type: 'string' }, id: { type: 'string' }, name: { type: 'string' }, payload: { type: 'string' } },
 });
 const command = positionals[0];
 
@@ -75,7 +76,15 @@ const MUTED = rgb(0x30 / 255, 0x36 / 255, 0x26 / 255);
 const WHITE = rgb(1, 1, 1);
 
 async function render(outDir: string, qrId: string, businessName: string, label?: string | null) {
-  const payload = await signQrPayload(qrSecret(), keyVersion, qrId);
+  await renderPayload(outDir, await signQrPayload(qrSecret(), keyVersion, qrId), businessName, label);
+}
+
+/** Render an already signed payload (no secret needed), e.g. one produced by supabase/dashboard/sign-test-qr.sql. */
+async function renderPayload(outDir: string, payload: string, businessName: string, label?: string | null) {
+  const parsed = parseQrPayload(payload);
+  if (!parsed) fail(`Not a Perko counter code: ${payload}`);
+  const qrId = parsed!.qrId;
+  const keyVersion = parsed!.version;
   mkdirSync(outDir, { recursive: true });
   await QRCode.toFile(`${outDir}/${qrId}.png`, payload, { width: 1200, margin: 3, errorCorrectionLevel: 'M', color: { dark: '#11130F', light: '#FFFFFF' } });
 
@@ -170,6 +179,10 @@ switch (command) {
     console.log(`revoked ${args.id}. Scans of this code now return "inactive".`);
     break;
   }
+  case 'qr:from-payload':
+    if (!args.payload || !args.name) fail('--payload and --name are required');
+    await renderPayload('scripts/out/payload', args.payload!, args.name!, args.label);
+    break;
   case 'qr:render':
     if (!args.id || !args.name) fail('--id and --name are required');
     await render('scripts/out/offline', args.id!, args.name!, args.label);
