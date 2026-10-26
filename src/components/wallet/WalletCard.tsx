@@ -2,6 +2,7 @@
 // Purely visual: the wallet stack adds position, gestures and accessibility around it.
 import { View } from 'react-native';
 import { remaining, remainingLabel } from '../../../supabase/functions/_shared/loyalty.ts';
+import { useTheme } from '../../lib/appearance';
 import type { Card } from '../../lib/types';
 import { colors } from '../../theme';
 import { Wordmark } from '../Brand';
@@ -65,6 +66,9 @@ export function WalletCardFace({ card, width }: { card: Card; width: number }) {
   const ready = card.status === 'complete';
   const points = card.program.type === 'points' || card.program.goal > 20;
   const missing = remaining(card.program, card.current);
+  const { t } = useTheme();
+  // In dark mode an ink card on the ink background gets a hairline so its edge still reads.
+  const outline = t.dark && face.bg === colors.ink;
 
   return (
     // Outer view carries the shadow (Android elevation needs a background on the same view).
@@ -75,8 +79,10 @@ export function WalletCardFace({ card, width }: { card: Card; width: number }) {
         borderRadius: CARD_RADIUS,
         backgroundColor: face.bg,
         elevation: 6,
-        shadowColor: colors.ink,
-        shadowOpacity: 0.18,
+        shadowColor: t.dark ? '#000000' : colors.ink,
+        shadowOpacity: t.dark ? 0.45 : 0.18,
+        borderWidth: outline ? 1 : 0,
+        borderColor: t.border,
         shadowRadius: 14,
         shadowOffset: { width: 0, height: 6 },
       }}

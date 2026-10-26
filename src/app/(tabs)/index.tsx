@@ -6,6 +6,8 @@ import { Avatar, Button, DemoBanner, Heading, LoadState, Screen } from '../../co
 import { WalletList } from '../../components/wallet/WalletList';
 import { WalletStack } from '../../components/wallet/WalletStack';
 import { api } from '../../lib/api';
+import { OnBrand } from '../../components/surface';
+import { useTheme } from '../../lib/appearance';
 import { useLoad, useScreenReader } from '../../lib/hooks';
 import { useSession } from '../../lib/session';
 import type { Business, Card } from '../../lib/types';
@@ -70,6 +72,7 @@ export default function Wallet() {
 }
 
 function Chip({ business }: { business: Business }) {
+  const { t } = useTheme();
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/business/[id]', params: { id: business.id } })}
@@ -82,7 +85,7 @@ function Chip({ business }: { business: Business }) {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        backgroundColor: pressed ? colors.paleStrong : colors.paper,
+        backgroundColor: pressed ? t.surfaceStrong : t.surface,
         borderRadius: radius.row,
         padding: 10,
       })}
@@ -90,7 +93,7 @@ function Chip({ business }: { business: Business }) {
       <Avatar initial={business.initial} tone={business.tone} size={36} />
       <View style={{ flex: 1 }}>
         <Txt kind="label" size={14} weight={700} numberOfLines={1}>{business.name}</Txt>
-        <Txt size={13} color={colors.muted} numberOfLines={1}>{business.kind}</Txt>
+        <Txt size={13} color={t.textMuted} numberOfLines={1}>{business.kind}</Txt>
       </View>
     </Pressable>
   );
@@ -98,6 +101,7 @@ function Chip({ business }: { business: Business }) {
 
 function EmptyWallet() {
   return (
+    <OnBrand>
     <View style={{ backgroundColor: colors.lime, borderRadius: radius.card, padding: 22, gap: 12 }}>
       <Txt kind="head">הארנק עוד ריק</Txt>
       <Txt color={colors.muted}>
@@ -108,5 +112,6 @@ function EmptyWallet() {
         <Button label="לגלות עסקים" onPress={() => router.navigate('/discover')} small variant="quiet" />
       </View>
     </View>
+    </OnBrand>
   );
 }

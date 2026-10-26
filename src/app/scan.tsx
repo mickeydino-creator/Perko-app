@@ -9,6 +9,7 @@ import { CloseIcon } from '../components/Icons';
 import { Progress } from '../components/Stamps';
 import { Txt } from '../components/Txt';
 import { Button } from '../components/ui';
+import { useTheme } from '../lib/appearance';
 import { collect, type CollectOutcome } from '../lib/collect';
 import { DEMO } from '../lib/config';
 import { demoQrPayload, SAMPLE_BUSINESSES } from '../lib/demoBackend';
@@ -153,6 +154,7 @@ function PermissionAsk({ canAsk, onAsk }: { canAsk: boolean; onAsk: () => void }
 
 /** The bottom sheet with the result (website .ui-sheet). Slides up with expo-out; no motion with reduce motion. */
 function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectOutcome; onAgain: () => void; onRetry: () => void; onClose: () => void }) {
+  const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const reduce = useReduceMotion();
   const y = useState(() => new Animated.Value(reduce ? 0 : 1))[0];
@@ -168,16 +170,16 @@ function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectO
       accessibilityLiveRegion="polite"
       style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
-        backgroundColor: colors.paper,
+        backgroundColor: t.surface,
         borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet,
         paddingHorizontal: 22, paddingTop: 10, paddingBottom: insets.bottom + 22,
         gap: 4,
         transform: [{ translateY }],
       }}
     >
-      <View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: colors.paleStrong, alignSelf: 'center', marginBottom: 14 }} />
+      <View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: t.surfaceStrong, alignSelf: 'center', marginBottom: 14 }} />
       <Txt kind="title" accessibilityRole="header">{c.title}</Txt>
-      {c.sub ? <Txt kind="lead" size={16} color={colors.muted} style={{ marginBottom: 14 }}>{c.sub}</Txt> : null}
+      {c.sub ? <Txt kind="lead" size={16} color={t.textMuted} style={{ marginBottom: 14 }}>{c.sub}</Txt> : null}
       {c.card ? (
         <Progress
           type={c.card.type}

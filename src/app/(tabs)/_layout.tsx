@@ -4,7 +4,8 @@ import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GiftIcon, HomeIcon, PinIcon, QrGlyph, UserIcon } from '../../components/Icons';
 import { Txt } from '../../components/Txt';
-import { colors, touch } from '../../theme';
+import { useTheme } from '../../lib/appearance';
+import { touch } from '../../theme';
 
 const tabs = {
   index: { label: 'כרטיסים', Icon: HomeIcon },
@@ -14,9 +15,10 @@ const tabs = {
 } as const;
 
 export default function TabsLayout() {
+  const { t } = useTheme();
   return (
     <Tabs
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.pale } }}
+      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: t.bg } }}
       tabBar={(props) => <TabBar {...props} />}
     >
       <Tabs.Screen name="index" />
@@ -30,11 +32,12 @@ export default function TabsLayout() {
 /** The website's tab bar (src/components/screens/TabBar.astro): four tabs and a raised ink scan button in the middle. */
 function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTheme();
   const item = (index: number) => {
     const route = state.routes[index];
-    const t = tabs[route.name as keyof typeof tabs];
+    const tab = tabs[route.name as keyof typeof tabs];
     const active = state.index === index;
-    const color = active ? colors.ink : colors.muted;
+    const color = active ? t.text : t.textMuted;
     return (
       <Pressable
         key={route.key}
@@ -43,14 +46,14 @@ function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
           if (!active && !e.defaultPrevented) navigateToTab(route.key);
         }}
         accessibilityRole="tab"
-        accessibilityLabel={t.label}
+        accessibilityLabel={tab.label}
         accessibilityState={{ selected: active }}
         style={{ flex: 1, minHeight: touch + 8, alignItems: 'center', justifyContent: 'flex-end', gap: 3, paddingBottom: 4 }}
       >
         <View style={{ opacity: active ? 1 : 0.85 }}>
-          <t.Icon size={24} color={color} />
+          <tab.Icon size={24} color={color} />
         </View>
-        <Txt size={12} weight={active ? 700 : 500} color={color}>{t.label}</Txt>
+        <Txt size={12} weight={active ? 700 : 500} color={color}>{tab.label}</Txt>
       </Pressable>
     );
   };
@@ -60,7 +63,9 @@ function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
       style={{
         flexDirection: 'row',
         alignItems: 'flex-end',
-        backgroundColor: colors.paper,
+        backgroundColor: t.tabBar,
+        borderTopWidth: t.dark ? 1 : 0,
+        borderTopColor: t.border,
         paddingTop: 8,
         paddingHorizontal: 8,
         // The bar paints behind the Android navigation bar too (edge to edge), so it stays light in dark mode.
@@ -85,15 +90,15 @@ function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
                 height: 60,
                 borderRadius: 30,
                 marginTop: -26,
-                backgroundColor: pressed ? colors.inkRaised : colors.ink,
+                backgroundColor: pressed ? t.accentPressed : t.accent,
                 alignItems: 'center',
                 justifyContent: 'center',
                 transform: [{ scale: pressed ? 0.96 : 1 }],
               }}
             >
-              <QrGlyph size={28} color={colors.lime} bg={pressed ? colors.inkRaised : colors.ink} />
+              <QrGlyph size={28} color={t.onAccent} bg={pressed ? t.accentPressed : t.accent} />
             </View>
-            <Txt size={12} weight={700} color={colors.ink}>סריקה</Txt>
+            <Txt size={12} weight={700} color={t.text}>סריקה</Txt>
           </>
         )}
       </Pressable>

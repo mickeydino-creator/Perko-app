@@ -1,5 +1,6 @@
-// Perko design tokens for the app. Mirrors src/styles/global.css of the website (Perko-marketing repo) (light values only).
-// There is no dark theme: every screen uses these colours whatever the system setting.
+// Perko design tokens for the app. Mirrors src/styles/global.css of the website (Perko-marketing repo).
+// `colors` are the brand colours, the same in both appearances (loyalty card faces, lime surfaces, ink).
+// Screens take their roles (background, surface, text, accent...) from `useTheme()`: light or dark palette below.
 import { Easing } from 'react-native';
 
 export const colors = {
@@ -65,3 +66,67 @@ export const motion = {
 } as const;
 /** Bottom padding of tab screens: clears the raised scan button (the tab bar itself takes its own space). */
 export const TAB_CLEARANCE = 44;
+
+/** Semantic roles. Light reproduces the original app exactly; dark uses only brand colours and their tints. */
+export type Palette = {
+  dark: boolean;
+  bg: string; // screen background
+  surface: string; // rows, sheets, inputs on bg
+  surfaceAlt: string; // inputs and tracks inside a surface
+  surfaceStrong: string; // quiet buttons, pressed rows
+  track: string; // empty stamps and bars on a surface
+  text: string;
+  textMuted: string;
+  placeholder: string;
+  accent: string; // fills that carry an action or the active state
+  onAccent: string; // text and icons on accent
+  accentPressed: string;
+  hero: string; // brand screens: onboarding, sign-in, reward done
+  onHero: string;
+  onHeroMuted: string;
+  heroTint: string; // pager dots, switch track on hero
+  tabBar: string;
+  border: string; // hairline that separates ink cards from an ink background
+};
+
+export const lightPalette: Palette = {
+  dark: false,
+  bg: colors.pale,
+  surface: colors.paper,
+  surfaceAlt: colors.pale,
+  surfaceStrong: colors.paleStrong,
+  track: colors.pale,
+  text: colors.ink,
+  textMuted: colors.muted,
+  placeholder: 'rgba(48, 54, 38, 0.45)',
+  accent: colors.ink,
+  onAccent: colors.lime,
+  accentPressed: colors.inkRaised,
+  hero: colors.lime,
+  onHero: colors.ink,
+  onHeroMuted: colors.muted,
+  heroTint: colors.inkOnLime14,
+  tabBar: colors.paper,
+  border: 'transparent',
+};
+
+export const darkPalette: Palette = {
+  dark: true,
+  bg: colors.ink,
+  surface: colors.inkRaised,
+  surfaceAlt: '#2A2E24', // ink + 10% paper
+  surfaceStrong: '#2A2E24',
+  track: '#2A2E24',
+  text: colors.paper,
+  textMuted: colors.slateOnInk,
+  placeholder: 'rgba(185, 188, 176, 0.6)',
+  accent: colors.lime, // lime with ink text on ink surfaces, as on the website
+  onAccent: colors.ink,
+  accentPressed: colors.lime2,
+  hero: colors.ink,
+  onHero: colors.paper,
+  onHeroMuted: colors.slateOnInk,
+  heroTint: 'rgba(248, 248, 244, 0.14)',
+  tabBar: '#191C15',
+  border: 'rgba(248, 248, 244, 0.12)',
+};

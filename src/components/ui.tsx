@@ -2,11 +2,13 @@ import { router } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../lib/appearance';
 import { DEMO } from '../lib/config';
 import { useReduceMotion } from '../lib/hooks';
 import type { Tone } from '../lib/types';
 import { colors, gutter, motion, radius, touch } from '../theme';
 import { BackIcon } from './Icons';
+import { useOnBrand } from './surface';
 import { Txt } from './Txt';
 
 /* Button ------------------------------------------------------------------------------------- */
@@ -14,7 +16,8 @@ import { Txt } from './Txt';
 type ButtonProps = {
   label: string;
   onPress: () => void;
-  /** ink: ink pill with lime text (on light surfaces). lime: lime pill with ink text (on ink). quiet: pale pill. */
+  /** ink: the accent pill (ink with lime text; lime with ink text in dark mode, and always ink on a lime card).
+   *  lime: lime pill with ink text (on ink surfaces). quiet: a tint pill. */
   variant?: 'ink' | 'lime' | 'quiet';
   disabled?: boolean;
   busy?: boolean;
@@ -29,9 +32,15 @@ export function Button({ label, onPress, variant = 'ink', disabled, busy, small,
   const reduce = useReduceMotion();
   const to = (v: number) =>
     !reduce && Animated.timing(scale, { toValue: v, duration: motion.press, easing: motion.out, useNativeDriver: true }).start();
-  const bg = { ink: colors.ink, lime: colors.lime, quiet: colors.paleStrong }[variant];
-  const bgPressed = { ink: colors.inkRaised, lime: colors.lime2, quiet: colors.pale }[variant];
-  const fg = { ink: colors.lime, lime: colors.ink, quiet: colors.ink }[variant];
+  const { t } = useTheme();
+  const brand = useOnBrand();
+  const accent = brand ? { bg: colors.ink, pressed: colors.inkRaised, fg: colors.lime } : { bg: t.accent, pressed: t.accentPressed, fg: t.onAccent };
+  const quiet = brand || !t.dark ? { bg: colors.paleStrong, pressed: colors.pale, fg: colors.ink } : { bg: t.surfaceStrong, pressed: t.surface, fg: t.text };
+  const bg = { ink: accent.bg, lime: colors.lime, quiet: quiet.bg }[variant];
+  const bgPressed = { ink: accent.pressed, lime: colors.lime2, quiet: quiet.pressed }[variant];
+  const fg = { ink: accent.fg, lime: colors.ink, quiet: quiet.fg }[variant];
+  const disabledBg = brand || !t.dark ? colors.paleStrong : t.surfaceStrong;
+  const disabledFg = brand || !t.dark ? colors.muted : t.textMuted;
   const off = disabled || busy;
   return (
     <Pressable
@@ -52,13 +61,13 @@ export function Button({ label, onPress, variant = 'ink', disabled, busy, small,
             paddingHorizontal: small ? 18 : 26,
             borderRadius: radius.pill,
             // Disabled: a flat tint instead of a faded brand colour.
-            backgroundColor: disabled ? colors.paleStrong : pressed && !off ? bgPressed : bg,
+            backgroundColor: disabled ? disabledBg : pressed && !off ? bgPressed : bg,
             alignItems: 'center',
             justifyContent: 'center',
             transform: [{ scale }],
           }}
         >
-          {busy ? <ActivityIndicator color={fg} /> : <Txt kind="label" size={small ? 15 : 18} weight={700} color={disabled ? colors.muted : fg}>{label}</Txt>}
+          {busy ? <ActivityIndicator color={fg} /> : <Txt kind="label" size={small ? 15 : 18} weight={700} color={disabled ? disabledFg : fg}>{label}</Txt>}
         </Animated.View>
       )}
     </Pressable>
@@ -74,9 +83,17 @@ const toneStyle: Record<Tone | 'onLime', { bg: string; fg: string }> = {
   onLime: { bg: colors.ink, fg: colors.lime },
 };
 
+/** In dark mode the "ink" and "pale" initials sit on a raised tint so they stay visible on ink rows. */
+const darkToneStyle: Record<'ink' | 'pale', { bg: string; fg: string }> = {
+  ink: { bg: '#2A2E24', fg: colors.lime },
+  pale: { bg: '#2A2E24', fg: colors.paper },
+};
+
 /** The business initial in a rounded square (website .ui-avatar). On a lime card use tone "onLime". */
 export function Avatar({ initial, tone, size = 44 }: { initial: string; tone: Tone | 'onLime'; size?: number }) {
-  const t = toneStyle[tone];
+  const theme = useTheme().t;
+  const brand = useOnBrand();
+  const t = theme.dark && !brand && (tone === 'ink' || tone === 'pale') ? darkToneStyle[tone] : toneStyle[tone];
   return (
     <View
       importantForAccessibility="no-hide-descendants"
@@ -101,9 +118,11 @@ type ScreenProps = {
   contentStyle?: StyleProp<ViewStyle>;
 };
 
-/** A screen with an explicit light background behind the status bar (the app never follows dark mode). */
-export function Screen({ children, bg = colors.pale, scroll = true, bottom = 32, edgeBottom = true, contentStyle }: ScreenProps) {
+/** A screen with an explicit background behind the status bar (theme background unless given). */
+export function Screen({ children, bg: bgProp, scroll = true, bottom = 32, edgeBottom = true, contentStyle }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const { t } = useTheme();
+  const bg = bgProp ?? t.bg;
   const pad = { paddingTop: insets.top + 8, paddingHorizontal: gutter, paddingBottom: bottom + (edgeBottom ? insets.bottom : 0) };
   if (!scroll) return <View style={[{ flex: 1, backgroundColor: bg }, pad, contentStyle]}>{children}</View>;
   return (
@@ -114,8 +133,9 @@ export function Screen({ children, bg = colors.pale, scroll = true, bottom = 32,
 }
 
 /** Back button + optional title for pushed screens. */
-export function TopBar({ title, onBack, tone = 'ink' }: { title?: string; onBack?: () => void; tone?: 'ink' | 'paper' }) {
-  const color = tone === 'ink' ? colors.ink : colors.paper;
+export function TopBar({ title, onBack, tone = 'text' }: { title?: string; onBack?: () => void; tone?: 'text' | 'paper' }) {
+  const { t } = useTheme();
+  const color = tone === 'text' ? t.text : colors.paper;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: touch, marginBottom: 4, marginHorizontal: -8 }}>
       <Pressable
@@ -134,9 +154,10 @@ export function TopBar({ title, onBack, tone = 'ink' }: { title?: string; onBack
 
 /** Screen heading block (website .ui-top: small hello line above a heavy title). */
 export function Heading({ over, title }: { over?: string; title: string }) {
+  const { t } = useTheme();
   return (
     <View style={{ paddingTop: 4, paddingBottom: 16 }}>
-      {over ? <Txt kind="lead" size={16} color={colors.muted}>{over}</Txt> : null}
+      {over ? <Txt kind="lead" size={16} color={t.textMuted}>{over}</Txt> : null}
       <Txt kind="title" accessibilityRole="header">{title}</Txt>
     </View>
   );
@@ -144,6 +165,7 @@ export function Heading({ over, title }: { over?: string; title: string }) {
 
 /** A small rounded tag, e.g. "לדוגמה" on sample businesses. */
 export function Tag({ label, onLime }: { label: string; onLime?: boolean }) {
+  const { t } = useTheme();
   return (
     <View
       style={{
@@ -151,20 +173,21 @@ export function Tag({ label, onLime }: { label: string; onLime?: boolean }) {
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: radius.pill,
-        backgroundColor: onLime ? colors.inkOnLime14 : colors.pale,
+        backgroundColor: onLime ? colors.inkOnLime14 : t.surfaceAlt,
       }}
     >
-      <Txt size={12} weight={600} color={colors.muted}>{label}</Txt>
+      <Txt size={12} weight={600} color={onLime ? colors.muted : t.textMuted}>{label}</Txt>
     </View>
   );
 }
 
 /** Thin banner shown in demo mode so nobody mistakes the sample data for a live service. */
 export function DemoBanner() {
+  const { t } = useTheme();
   if (!DEMO) return null;
   return (
-    <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 12 }}>
-      <Txt kind="small" color={colors.muted}>
+    <View style={{ backgroundColor: t.surface, borderRadius: radius.row, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 12 }}>
+      <Txt kind="small" color={t.textMuted}>
         <Txt kind="small" weight={700}>מצב הדגמה.</Txt> נתונים לדוגמה על המכשיר הזה בלבד, בלי שרת. העסקים כאן הם המחשה.
       </Txt>
     </View>
@@ -173,16 +196,17 @@ export function DemoBanner() {
 
 /** Loading, offline and error states with a retry. */
 export function LoadState({ loading, error, onRetry }: { loading: boolean; error: 'offline' | 'error' | null; onRetry: () => void }) {
+  const { t } = useTheme();
   if (error) {
     return (
       <View style={{ paddingVertical: 32, gap: 12, alignItems: 'flex-start' }}>
         <Txt kind="head">{error === 'offline' ? 'אין חיבור לאינטרנט' : 'משהו השתבש'}</Txt>
-        <Txt color={colors.muted}>{error === 'offline' ? 'בודקים את החיבור ומנסים שוב.' : 'לא הצלחנו לטעון את הנתונים.'}</Txt>
+        <Txt color={t.textMuted}>{error === 'offline' ? 'בודקים את החיבור ומנסים שוב.' : 'לא הצלחנו לטעון את הנתונים.'}</Txt>
         <Button label="לנסות שוב" onPress={onRetry} small />
       </View>
     );
   }
-  if (loading) return <ActivityIndicator color={colors.ink} style={{ paddingVertical: 32 }} accessibilityLabel="טוען" />;
+  if (loading) return <ActivityIndicator color={t.text} style={{ paddingVertical: 32 }} accessibilityLabel="טוען" />;
   return null;
 }
 

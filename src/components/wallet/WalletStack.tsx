@@ -26,9 +26,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
+import { useTheme } from '../../lib/appearance';
 import { useReduceMotion } from '../../lib/hooks';
 import type { Card } from '../../lib/types';
-import { colors, gutter, TAB_CLEARANCE } from '../../theme';
+import { gutter, TAB_CLEARANCE } from '../../theme';
 import { cardA11y } from '../CardViews';
 import { Txt } from '../Txt';
 import { Button } from '../ui';
@@ -78,6 +79,7 @@ export function WalletStack({ cards, header, footer, onDetails, onScan, onRedeem
   const insets = useSafeAreaInsets();
   const { width: screenW } = useWindowDimensions();
   const reduce = useReduceMotion();
+  const { t } = useTheme();
   const n = cards.length;
   const W = screenW - gutter * 2;
   const H = cardHeight(W);
@@ -183,7 +185,7 @@ export function WalletStack({ cards, header, footer, onDetails, onScan, onRedeem
 
   return (
     <GestureDetector gesture={scrollPan}>
-      <View style={{ flex: 1, backgroundColor: colors.pale, overflow: 'hidden' }} onLayout={onRoot}>
+      <View style={{ flex: 1, backgroundColor: t.bg, overflow: 'hidden' }} onLayout={onRoot}>
         <Animated.View style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, contentStyle]} pointerEvents={focused === null ? 'box-none' : 'none'}>
           <Animated.View style={[fadeStyle, { paddingTop: insets.top }]} onLayout={(e) => headerH.set(e.nativeEvent.layout.height)}>
             {header}
@@ -243,14 +245,15 @@ export function WalletStack({ cards, header, footer, onDetails, onScan, onRedeem
 }
 
 function Pager({ index, count }: { index: number; count: number }) {
+  const { t } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} accessible accessibilityLabel={`כרטיס ${index + 1} מתוך ${count}`}>
       <View style={{ flexDirection: 'row', gap: 5 }}>
         {Array.from({ length: Math.min(count, 10) }, (_, k) => (
-          <View key={k} style={{ width: k === index ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: k === index ? colors.ink : colors.paleStrong }} />
+          <View key={k} style={{ width: k === index ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: k === index ? t.accent : t.surfaceStrong }} />
         ))}
       </View>
-      <Txt size={13} color={colors.muted}>החלקה לצד למעבר בין כרטיסים</Txt>
+      <Txt size={13} color={t.textMuted}>החלקה לצד למעבר בין כרטיסים</Txt>
     </View>
   );
 }

@@ -7,13 +7,15 @@ import { Wordmark } from '../../components/Brand';
 import { ChevronIcon } from '../../components/Icons';
 import { Txt } from '../../components/Txt';
 import { Button, DemoBanner, Heading, Screen } from '../../components/ui';
+import { useTheme, type Appearance } from '../../lib/appearance';
 import { api } from '../../lib/api';
 import { NetworkError } from '../../lib/backend';
 import { PRIVACY_POLICY_URL } from '../../lib/config';
 import { useSession } from '../../lib/session';
-import { colors, fonts, radius, TAB_CLEARANCE, touch } from '../../theme';
+import { fonts, radius, TAB_CLEARANCE, touch } from '../../theme';
 
 export default function Profile() {
+  const { t } = useTheme();
   const { profile, setProfile } = useSession();
   const [name, setName] = useState(profile?.name ?? '');
   const [saved, setSaved] = useState(false);
@@ -52,7 +54,7 @@ export default function Profile() {
       <Heading title="פרופיל" />
       <DemoBanner />
 
-      <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, padding: 16, gap: 14 }}>
+      <View style={{ backgroundColor: t.surface, borderRadius: radius.row, padding: 16, gap: 14 }}>
         <View style={{ gap: 8 }}>
           <Txt kind="label">שם</Txt>
           <TextInput
@@ -66,9 +68,9 @@ export default function Profile() {
             placeholderTextColor="rgba(48, 54, 38, 0.55)"
             accessibilityLabel="שם"
             maxLength={60}
-            selectionColor={colors.ink}
-            cursorColor={colors.ink}
-            style={{ minHeight: 52, borderRadius: 14, backgroundColor: colors.pale, paddingHorizontal: 14, fontFamily: fonts[500], fontSize: 17, color: colors.ink }}
+            selectionColor={t.text}
+            cursorColor={t.text}
+            style={{ minHeight: 52, borderRadius: 14, backgroundColor: t.surfaceAlt, paddingHorizontal: 14, fontFamily: fonts[500], fontSize: 17, color: t.text }}
           />
           <Button label={saved ? 'נשמר' : 'שמירה'} small onPress={saveName} disabled={saved || (name.trim() || null) === (profile?.name ?? null)} style={{ alignSelf: 'flex-start' }} />
         </View>
@@ -80,7 +82,9 @@ export default function Profile() {
 
       {message ? <Txt kind="label" style={{ marginTop: 10 }} accessibilityRole="alert">{message}</Txt> : null}
 
-      <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, marginTop: 12, overflow: 'hidden' }}>
+      <AppearancePicker />
+
+      <View style={{ backgroundColor: t.surface, borderRadius: radius.row, marginTop: 12, overflow: 'hidden' }}>
         <Row
           label="מדיניות פרטיות"
           note={PRIVACY_POLICY_URL ? undefined : 'תפורסם לפני הפיילוט'}
@@ -89,9 +93,9 @@ export default function Profile() {
         <Row label="יציאה מהחשבון" onPress={signOut} />
       </View>
 
-      <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, padding: 16, marginTop: 12, gap: 10 }}>
+      <View style={{ backgroundColor: t.surface, borderRadius: radius.row, padding: 16, marginTop: 12, gap: 10 }}>
         <Txt kind="label" weight={800}>מחיקת החשבון</Txt>
-        <Txt size={15} color={colors.muted}>מוחקת את החשבון, את כל הכרטיסים, החותמות וההיסטוריה. אי אפשר לשחזר.</Txt>
+        <Txt size={15} color={t.textMuted}>מוחקת את החשבון, את כל הכרטיסים, החותמות וההיסטוריה. אי אפשר לשחזר.</Txt>
         {deleting === 'idle' ? (
           <Button label="מחיקת החשבון" variant="quiet" small onPress={() => setDeleting('confirm')} style={{ alignSelf: 'flex-start' }} />
         ) : (
@@ -104,7 +108,7 @@ export default function Profile() {
 
       <View style={{ marginTop: 28, gap: 6 }}>
         <Wordmark size={24} />
-        <Txt kind="small" color={colors.muted}>
+        <Txt kind="small" color={t.textMuted}>
           גישה מוקדמת · גרסה {Constants.expoConfig?.version ?? ''}{api.mode === 'demo' ? ' · מצב הדגמה' : ''}
         </Txt>
       </View>
@@ -112,7 +116,41 @@ export default function Profile() {
   );
 }
 
+const appearanceOptions: { id: Appearance; label: string }[] = [
+  { id: 'system', label: 'לפי הטלפון' },
+  { id: 'light', label: 'בהיר' },
+  { id: 'dark', label: 'כהה' },
+];
+
+/** Profile > מראה: follow the phone, or always light, or always dark. */
+function AppearancePicker() {
+  const { t, appearance, setAppearance } = useTheme();
+  return (
+    <View style={{ backgroundColor: t.surface, borderRadius: radius.row, padding: 16, marginTop: 12, gap: 10 }}>
+      <Txt kind="label" weight={800} accessibilityRole="header">מראה</Txt>
+      <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', backgroundColor: t.surfaceAlt, borderRadius: radius.pill, padding: 4 }}>
+        {appearanceOptions.map((o) => {
+          const on = o.id === appearance;
+          return (
+            <Pressable
+              key={o.id}
+              onPress={() => setAppearance(o.id)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              accessibilityLabel={`מראה: ${o.label}`}
+              style={{ flex: 1, minHeight: touch - 4, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.accent : 'transparent' }}
+            >
+              <Txt kind="label" weight={on ? 700 : 500} color={on ? t.onAccent : t.text}>{o.label}</Txt>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function Row({ label, note, onPress }: { label: string; note?: string; onPress?: () => void }) {
+  const { t } = useTheme();
   return (
     <Pressable
       onPress={onPress}
@@ -121,14 +159,14 @@ function Row({ label, note, onPress }: { label: string; note?: string; onPress?:
       accessibilityLabel={note ? `${label}, ${note}` : label}
       style={({ pressed }) => ({
         minHeight: touch + 8, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: pressed ? colors.pale : 'transparent', borderBottomWidth: 1, borderBottomColor: colors.pale,
+        backgroundColor: pressed ? t.surfaceAlt : 'transparent', borderBottomWidth: 1, borderBottomColor: t.surfaceAlt,
       })}
     >
       <View>
         <Txt kind="label" size={16}>{label}</Txt>
-        {note ? <Txt size={13} color={colors.muted}>{note}</Txt> : null}
+        {note ? <Txt size={13} color={t.textMuted}>{note}</Txt> : null}
       </View>
-      {onPress ? <ChevronIcon size={18} color={colors.muted} /> : null}
+      {onPress ? <ChevronIcon size={18} color={t.textMuted} /> : null}
     </Pressable>
   );
 }

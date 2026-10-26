@@ -7,6 +7,8 @@ import { colors, radius, touch } from '../theme';
 import { ChevronIcon } from './Icons';
 import { Bar, Progress } from './Stamps';
 import { Txt } from './Txt';
+import { useTheme } from '../lib/appearance';
+import { OnBrand } from './surface';
 import { Avatar, Tag } from './ui';
 
 /** "10 חותמות = קפה הפוך עלינו". */
@@ -33,6 +35,7 @@ export function HeroCard({ card, onPress }: { card: Card; onPress: () => void })
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={cardA11y(card)} accessibilityHint="פותח את פרטי הכרטיס">
       {({ pressed }) => (
+        <OnBrand>
         <View style={{ backgroundColor: pressed ? colors.lime2 : colors.lime, borderRadius: radius.card, padding: 18, paddingBottom: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <Avatar initial={card.business.initial} tone="onLime" />
@@ -50,6 +53,7 @@ export function HeroCard({ card, onPress }: { card: Card; onPress: () => void })
             {card.business.isSample ? <Tag label="לדוגמה" onLime /> : null}
           </View>
         </View>
+        </OnBrand>
       )}
     </Pressable>
   );
@@ -73,10 +77,11 @@ function Count({ card }: { card: Card }) {
 
 /** A compact row (website .ui-row). */
 export function CardRow({ card, onPress }: { card: Card; onPress: () => void }) {
+  const { t } = useTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={cardA11y(card)} accessibilityHint="פותח את פרטי הכרטיס">
       {({ pressed }) => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? colors.paleStrong : colors.paper, borderRadius: radius.row, padding: 12, minHeight: touch + 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: pressed ? t.surfaceStrong : t.surface, borderRadius: radius.row, padding: 12, minHeight: touch + 16 }}>
           <Avatar initial={card.business.initial} tone={card.business.tone} />
           <View style={{ flex: 1, gap: 7 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -86,7 +91,7 @@ export function CardRow({ card, onPress }: { card: Card; onPress: () => void }) 
             <Bar value={progress(card.program, card.current)} />
           </View>
           <Txt kind="label" weight={700} tabular style={{ minWidth: 52, textAlign: 'center' }}>{countLabel(card)}</Txt>
-          <ChevronIcon size={18} color={colors.muted} />
+          <ChevronIcon size={18} color={t.textMuted} />
         </View>
       )}
     </Pressable>
@@ -94,15 +99,17 @@ export function CardRow({ card, onPress }: { card: Card; onPress: () => void }) 
 }
 
 function ReadyDot() {
+  const { t } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.ink, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 }}>
-      <Txt size={11} weight={700} color={colors.lime}>הטבה מוכנה</Txt>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: t.accent, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 }}>
+      <Txt size={11} weight={700} color={t.onAccent}>הטבה מוכנה</Txt>
     </View>
   );
 }
 
 /** The business's rules (website Solution.astro "הכללים של העסק הזה"). */
 export function RulesBox({ program }: { program: NonNullable<Business['program']> }) {
+  const { t } = useTheme();
   const unit = program.type === 'points' ? 'נק׳' : 'חותמות';
   const rows: [string, string][] = [
     ['צבירה', program.rule],
@@ -113,24 +120,25 @@ export function RulesBox({ program }: { program: NonNullable<Business['program']
     rows.push(['תדירות', `צבירה אחת בכל ${durationLabel(program.cooldownMinutes)}`]);
   }
   return (
-    <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 14 }}>
+    <View style={{ backgroundColor: t.surface, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 14 }}>
       <Txt kind="label" weight={800} style={{ marginBottom: 6 }} accessibilityRole="header">הכללים של העסק הזה</Txt>
       {rows.map(([k, v]) => (
         <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12, paddingVertical: 6 }}>
-          <Txt size={15} color={colors.muted}>{k}</Txt>
+          <Txt size={15} color={t.textMuted}>{k}</Txt>
           <Txt size={15} weight={600} style={{ flexShrink: 1 }}>{v}</Txt>
         </View>
       ))}
-      <Txt kind="small" color={colors.muted} style={{ marginTop: 6 }}>צוברים אחרי רכישה מזכה, לפי הכללים שהעסק קבע.</Txt>
+      <Txt kind="small" color={t.textMuted} style={{ marginTop: 6 }}>צוברים אחרי רכישה מזכה, לפי הכללים שהעסק קבע.</Txt>
     </View>
   );
 }
 
 /** Address, hours and an optional link out. */
 export function PlaceInfo({ business }: { business: Business }) {
+  const { t } = useTheme();
   if (!business.address && !business.hours && !business.website) return null;
   return (
-    <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 14, gap: 6 }}>
+    <View style={{ backgroundColor: t.surface, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 14, gap: 6 }}>
       {business.address ? <Txt size={15}><Txt size={15} weight={700}>כתובת: </Txt>{business.address}</Txt> : null}
       {business.hours ? (
         <View>

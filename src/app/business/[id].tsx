@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { PlaceInfo, programLine, RulesBox } from '../../components/CardViews';
 import { Txt } from '../../components/Txt';
 import { Avatar, Button, LoadState, Reveal, Screen, Tag, TopBar } from '../../components/ui';
+import { OnBrand } from '../../components/surface';
 import { api } from '../../lib/api';
 import { useLoad } from '../../lib/hooks';
 import { colors, radius } from '../../theme';
@@ -35,6 +36,7 @@ export default function BusinessPage() {
       {data && !b ? <Txt kind="head">העסק לא נמצא</Txt> : null}
       {b ? (
         <Reveal style={{ gap: 12 }}>
+          <OnBrand>
           <View style={{ backgroundColor: colors.lime, borderRadius: radius.card, padding: 20, gap: 16 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <Avatar initial={b.initial} tone="onLime" size={56} />
@@ -60,6 +62,7 @@ export default function BusinessPage() {
               )
             ) : null}
           </View>
+          </OnBrand>
           {b.program ? <RulesBox program={b.program} /> : null}
           <PlaceInfo business={b} />
         </Reveal>

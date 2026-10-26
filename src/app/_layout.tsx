@@ -12,10 +12,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { I18nManager, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider, useTheme } from '../lib/appearance';
 import { SessionProvider, useSession } from '../lib/session';
 import { colors } from '../theme';
 
@@ -34,35 +35,46 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-// Light app only: explicit colours for the window behind the screens and for the Android navigation bar,
-// so a phone in dark mode still shows the light app.
-SystemUI.setBackgroundColorAsync(colors.pale).catch(() => undefined);
-if (Platform.OS === 'android') {
-  try {
-    NavigationBar.setStyle('dark'); // dark buttons on our light surfaces
-  } catch {
-    // older runtimes: the app.json plugin config applies
-  }
-}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({ Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_800ExtraBold, Heebo_900Black });
   if (!loaded && !error) return null;
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.pale }}>
-      <SafeAreaProvider style={{ backgroundColor: colors.pale }}>
+    <ThemeProvider>
+      <Themed>
         <SessionProvider>
-          {/* direction: belt and braces for the RTL layout inside the app. */}
-          <View style={{ flex: 1, direction: 'rtl', backgroundColor: colors.pale }}>
-            <Routes />
-          </View>
+          <Routes />
         </SessionProvider>
+      </Themed>
+    </ThemeProvider>
+  );
+}
+
+/** Window, status bar and Android navigation bar follow the chosen appearance (Profile > מראה). */
+function Themed({ children }: { children: ReactNode }) {
+  const { t } = useTheme();
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(t.bg).catch(() => undefined);
+    if (Platform.OS === 'android') {
+      try {
+        NavigationBar.setStyle(t.dark ? 'light' : 'dark');
+      } catch {
+        // older runtimes: the app.json plugin config applies
+      }
+    }
+  }, [t]);
+  return (
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.bg }}>
+      <SafeAreaProvider style={{ backgroundColor: t.bg }}>
+        {/* direction: belt and braces for the RTL layout inside the app. */}
+        <View style={{ flex: 1, direction: 'rtl', backgroundColor: t.bg }}>{children}</View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
 function Routes() {
+  const { t } = useTheme();
   const { ready, profile, onboarded } = useSession();
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);
@@ -71,9 +83,9 @@ function Routes() {
   const signedIn = !!profile;
   return (
     <>
-      {/* Dark icons on the light status bar. The scan screen switches to light icons on its ink background. */}
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.pale }, animation: 'fade_from_bottom', animationDuration: 240 }}>
+      {/* Status bar icons follow the appearance. The scan screen sets light icons on its ink background. */}
+      <StatusBar style={t.dark ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg }, animation: 'fade_from_bottom', animationDuration: 240 }}>
         <Stack.Protected guard={!signedIn && !onboarded}>
           <Stack.Screen name="onboarding" />
         </Stack.Protected>
@@ -85,7 +97,7 @@ function Routes() {
           <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom', contentStyle: { backgroundColor: colors.ink } }} />
           <Stack.Screen name="business/[id]" />
           <Stack.Screen name="card/[id]" />
-          <Stack.Screen name="redeem/[id]" options={{ contentStyle: { backgroundColor: colors.paper } }} />
+          <Stack.Screen name="redeem/[id]" options={{ contentStyle: { backgroundColor: t.surface } }} />
           <Stack.Screen name="c/[token]" />
         </Stack.Protected>
       </Stack>

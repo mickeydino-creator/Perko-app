@@ -1,10 +1,12 @@
 // Stamp grid for stamp programs, progress meter for points programs (website: src/components/ui/Stamps.astro).
 import { useEffect, useState } from 'react';
 import { Animated, View } from 'react-native';
+import { useTheme } from '../lib/appearance';
 import { useReduceMotion } from '../lib/hooks';
 import type { ProgramType } from '../lib/types';
 import { colors, motion } from '../theme';
 import { CheckIcon } from './Icons';
+import { useOnBrand } from './surface';
 
 export function columnsFor(goal: number): number {
   if (goal <= 6) return goal;
@@ -32,7 +34,10 @@ type StampsProps = {
 export function Stamps({ goal, current, onLime, surface, columns, gap: gapProp, landIndex, size = 'normal' }: StampsProps) {
   const cols = columns ?? columnsFor(goal);
   const gap = gapProp ?? (size === 'large' ? 12 : 9);
-  const on = surface ?? (onLime ? 'lime' : 'light');
+  const { t } = useTheme();
+  const brand = useOnBrand();
+  // A plain surface in dark mode is ink-raised: use the on-ink stamps (lime discs). Explicit surfaces win.
+  const on = surface ?? (onLime ? 'lime' : t.dark && !brand ? 'dark' : 'light');
   return (
     <View
       accessible
@@ -96,8 +101,11 @@ function Stamp({ on, reward, surface, land }: { on: boolean; reward: boolean; su
 }
 
 /** Points progress (website .ui-meter). The fill grows from the start side (right in RTL). */
-export function Meter({ goal, current, onLime, dark, animate }: { goal: number; current: number; onLime?: boolean; dark?: boolean; animate?: boolean }) {
+export function Meter({ goal, current, onLime, dark: darkProp, animate }: { goal: number; current: number; onLime?: boolean; dark?: boolean; animate?: boolean }) {
   const reduce = useReduceMotion();
+  const { t } = useTheme();
+  const brand = useOnBrand();
+  const dark = darkProp ?? (!onLime && t.dark && !brand);
   const pct = Math.min(1, Math.max(0, goal ? current / goal : 0));
   const w = useState(() => new Animated.Value(animate && !reduce ? 0 : pct))[0];
   useEffect(() => {
@@ -124,9 +132,10 @@ export function Meter({ goal, current, onLime, dark, animate }: { goal: number; 
 
 /** Slim bar for list rows (website .ui-bar). */
 export function Bar({ value }: { value: number }) {
+  const { t } = useTheme();
   return (
-    <View style={{ height: 6, borderRadius: 999, backgroundColor: colors.pale, overflow: 'hidden', flexDirection: 'row' }}>
-      <View style={{ width: `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`, backgroundColor: colors.ink, borderRadius: 999 }} />
+    <View style={{ height: 6, borderRadius: 999, backgroundColor: t.track, overflow: 'hidden', flexDirection: 'row' }}>
+      <View style={{ width: `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`, backgroundColor: t.accent, borderRadius: 999 }} />
     </View>
   );
 }

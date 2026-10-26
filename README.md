@@ -12,7 +12,10 @@ marketing site, labelled "לדוגמה" in the app. None of them is a participan
 `research/prospects.json` (Perko-marketing repo) are deliberately not in the app or the seed: none has agreed to participate.
 
 - iOS and Android (bundle id / package `org.perko.app`). Android-only extras: navigation-bar style and the back button.
-- Hebrew only, right-to-left. Light mode only, whatever the phone's setting.
+- Hebrew only, right-to-left. Light and dark appearance: Profile → מראה (לפי הטלפון / בהיר / כהה), stored on the device.
+  Dark mode uses only brand colours (ink background, ink-raised surfaces, off-white text, lime accent with ink text);
+  loyalty cards and lime brand cards keep their own colours. Roles live in `src/theme.ts` (`lightPalette`,
+  `darkPalette`), read with `useTheme()`; `OnBrand` marks lime/off-white cards whose colours never change.
 - QR collection only (no NFC in v1).
 
 ## Stack
@@ -207,8 +210,8 @@ in a build, not in Expo Go.
   npx eas-cli@latest build -p android --profile preview    # installable APK
   # or locally with Android Studio installed:  npx expo run:android
   ```
-- Check with the phone in dark mode: every screen, the status bar and the navigation bar must stay light
-  (`userInterfaceStyle: "light"`, explicit colours on every screen, `expo-navigation-bar` style "dark").
+- Check both appearances: set Profile → מראה to כהה and to בהיר, and with "לפי הטלפון" switch the phone's own dark
+  mode; the status bar and the Android navigation bar follow.
 - Regenerate icons/splash after changing the logo: `npm run assets`.
 
 ## What was verified in this version, and what was not

@@ -2,6 +2,8 @@
 import { View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { colors } from '../theme';
+import { useTheme } from '../lib/appearance';
+import { useOnBrand } from './surface';
 import { WORDMARK } from './wordmarkPath';
 
 /**
@@ -10,7 +12,11 @@ import { WORDMARK } from './wordmarkPath';
  * on iOS, Android and web alike. `size` is the font size in dp.
  * tone "ink": ink letters and disc, for light surfaces. tone "lime": paper letters and lime disc, for ink surfaces.
  */
-export function Wordmark({ size = 30, tone = 'ink' }: { size?: number; tone?: 'ink' | 'lime' }) {
+export function Wordmark({ size = 30, tone: toneProp }: { size?: number; tone?: 'ink' | 'lime' }) {
+  const { t } = useTheme();
+  const brand = useOnBrand();
+  // Default: ink on light surfaces, the on-ink version (paper letters, lime disc) on dark ones.
+  const tone = toneProp ?? (t.dark && !brand ? 'lime' : 'ink');
   const letters = tone === 'ink' ? colors.ink : colors.paper;
   const disc = tone === 'ink' ? colors.ink : colors.lime;
   const k = size / WORDMARK.em;

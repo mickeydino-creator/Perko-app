@@ -4,6 +4,8 @@ import { Animated, View } from 'react-native';
 import { Progress } from '../../components/Stamps';
 import { Txt } from '../../components/Txt';
 import { Button, LoadState, Screen, Tag, TopBar } from '../../components/ui';
+import { OnBrand } from '../../components/surface';
+import { useTheme } from '../../lib/appearance';
 import { api } from '../../lib/api';
 import { NetworkError } from '../../lib/backend';
 import { useLoad, useReduceMotion } from '../../lib/hooks';
@@ -12,6 +14,7 @@ import { colors, fonts, radius } from '../../theme';
 type Code = { code: string; expiresAt: number };
 
 export default function Redeem() {
+  const { t } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, loading, reload } = useLoad(() => api.getCard(id), [id]);
   const card = data?.card;
@@ -81,26 +84,28 @@ export default function Redeem() {
   const unit = card?.program.type === 'points' ? 'נקודות' : 'חותמות';
 
   return (
-    <Screen bg={colors.paper}>
+    <Screen bg={t.surface}>
       <TopBar />
       {data === undefined ? <LoadState loading={loading} error={error} onRetry={reload} /> : null}
       {card ? (
         <>
           <View style={{ paddingBottom: 14 }}>
-            <Txt kind="lead" size={16} color={colors.muted}>{card.business.name}</Txt>
+            <Txt kind="lead" size={16} color={t.textMuted}>{card.business.name}</Txt>
             <Txt kind="title" accessibilityRole="header">{card.status === 'complete' ? 'ההטבה מוכנה' : 'ההטבה עוד לא מוכנה'}</Txt>
           </View>
 
+          <OnBrand>
           <View style={{ backgroundColor: colors.lime, borderRadius: 24, padding: 22, paddingTop: 24 }}>
             <Progress type={card.program.type} goal={card.program.goal} current={card.current} onLime />
             <Txt kind="title" size={28} style={{ marginTop: 16 }}>{card.program.reward}</Txt>
             <Txt size={15} color={colors.muted}>{card.current} מתוך {card.program.goal} {unit} נאספו</Txt>
             {card.business.isSample ? <View style={{ marginTop: 10 }}><Tag label="עסק לדוגמה" onLime /></View> : null}
           </View>
+          </OnBrand>
 
           {card.status === 'complete' ? (
             <View style={{ marginTop: 22, gap: 12 }}>
-              <Txt kind="label" color={colors.muted} align="center">מציגים את המסך לצוות בקופה</Txt>
+              <Txt kind="label" color={t.textMuted} align="center">מציגים את המסך לצוות בקופה</Txt>
               <LiveCode code={code?.code ?? null} secondsLeft={secondsLeft} now={now} />
               {codeError ? <Txt kind="label" align="center" accessibilityRole="alert">{codeError}</Txt> : null}
 
@@ -113,10 +118,10 @@ export default function Redeem() {
               ) : (
                 <Button label="מימוש ההטבה" onPress={() => setConfirming(true)} disabled={!code} />
               )}
-              <Txt kind="small" color={colors.muted} align="center">הקוד מתחלף כל 30 שניות, כך שצילום מסך לא שווה מימוש.</Txt>
+              <Txt kind="small" color={t.textMuted} align="center">הקוד מתחלף כל 30 שניות, כך שצילום מסך לא שווה מימוש.</Txt>
             </View>
           ) : (
-            <Txt color={colors.muted} style={{ marginTop: 20 }}>כשהכרטיס מתמלא, ההטבה מופיעה כאן.</Txt>
+            <Txt color={t.textMuted} style={{ marginTop: 20 }}>כשהכרטיס מתמלא, ההטבה מופיעה כאן.</Txt>
           )}
         </>
       ) : null}
@@ -159,11 +164,12 @@ function LiveCode({ code, secondsLeft, now }: { code: string | null; secondsLeft
 }
 
 function Done({ reward, business }: { reward: string; business: string }) {
+  const { t } = useTheme();
   return (
-    <Screen bg={colors.lime} contentStyle={{ flexGrow: 1, justifyContent: 'center', gap: 14 }}>
-      <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.ink }} />
+    <Screen bg={t.hero} contentStyle={{ flexGrow: 1, justifyContent: 'center', gap: 14 }}>
+      <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: t.accent }} />
       <Txt kind="display" accessibilityRole="header">ההטבה מומשה</Txt>
-      <Txt kind="lead" color={colors.muted}>{reward} ב{business}. כרטיס חדש כבר התחיל בארנק.</Txt>
+      <Txt kind="lead" color={t.onHeroMuted}>{reward} ב{business}. כרטיס חדש כבר התחיל בארנק.</Txt>
       <Button label="חזרה לכרטיסים" onPress={() => router.dismissTo('/')} style={{ alignSelf: 'flex-start', marginTop: 10 }} />
     </Screen>
   );

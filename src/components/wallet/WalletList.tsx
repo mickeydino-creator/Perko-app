@@ -3,8 +3,9 @@
 import { useRef, type ReactNode } from 'react';
 import { AccessibilityInfo, findNodeHandle, Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../lib/appearance';
 import type { Card } from '../../lib/types';
-import { colors, gutter, TAB_CLEARANCE } from '../../theme';
+import { gutter, TAB_CLEARANCE } from '../../theme';
 import { cardA11y } from '../CardViews';
 import { WalletCardFace } from './WalletCard';
 
@@ -13,6 +14,7 @@ type Props = { cards: Card[]; header: ReactNode; footer: ReactNode; onDetails: (
 export function WalletList({ cards, header, footer, onDetails }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { t } = useTheme();
   const refs = useRef<(View | null)[]>([]);
   const focus = (i: number) => {
     const node = refs.current[i] && findNodeHandle(refs.current[i]);
@@ -20,7 +22,7 @@ export function WalletList({ cards, header, footer, onDetails }: Props) {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.pale }} contentContainerStyle={{ paddingBottom: TAB_CLEARANCE }}>
+    <ScrollView style={{ flex: 1, backgroundColor: t.bg }} contentContainerStyle={{ paddingBottom: TAB_CLEARANCE }}>
       <View style={{ paddingTop: insets.top }}>{header}</View>
       <View style={{ gap: 14, paddingHorizontal: gutter }}>
         {cards.map((card, i) => (

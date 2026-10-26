@@ -5,12 +5,13 @@ import { formatIsraeliPhone, normalizeEmail, normalizeIsraeliPhone } from '../..
 import { Wordmark } from '../components/Brand';
 import { Txt } from '../components/Txt';
 import { Button, DemoBanner, Screen, TopBar } from '../components/ui';
+import { useTheme } from '../lib/appearance';
 import { api } from '../lib/api';
 import { NetworkError } from '../lib/backend';
 import { DEMO, EMAIL_CODE_LENGTH, PHONE_SIGN_IN } from '../lib/config';
 import { useSession } from '../lib/session';
 import type { SignInTarget } from '../lib/types';
-import { colors, fonts, radius, touch } from '../theme';
+import { fonts, radius, touch } from '../theme';
 
 const RESEND_SECONDS = 30;
 
@@ -34,6 +35,7 @@ const copy = {
 } as const;
 
 export default function SignIn() {
+  const { t } = useTheme();
   const { setProfile, onboarded } = useSession();
   // Email only for now (PHONE_SIGN_IN): SMS needs a paid provider before the pilot.
   const [method, setMethod] = useState<Method>('email');
@@ -52,7 +54,7 @@ export default function SignIn() {
     method === 'phone' ? (e164 ? { kind: 'phone', phone: e164 } : null) : mail ? { kind: 'email', email: mail } : null;
   // SMS codes are 6 digits; email codes follow the project's Email OTP Length (EMAIL_CODE_LENGTH).
   const codeMax = method === 'phone' ? 6 : EMAIL_CODE_LENGTH;
-  const t = copy[method];
+  const tx = copy[method];
 
   useEffect(() => {
     if (wait <= 0) return;
@@ -62,7 +64,7 @@ export default function SignIn() {
 
   const send = async () => {
     if (!target) {
-      setError(t.invalid);
+      setError(tx.invalid);
       return;
     }
     setBusy(true);
@@ -103,18 +105,18 @@ export default function SignIn() {
   if (!onboarded) return <Redirect href="/onboarding" />;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.lime }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Screen bg={colors.lime}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: t.hero }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Screen bg={t.hero}>
         {step === 'code' ? <TopBar onBack={() => setStep('enter')} /> : <View style={{ height: touch, justifyContent: 'center' }}><Wordmark size={30} /></View>}
         <View style={{ gap: 12, marginTop: 28, marginBottom: 24 }}>
-          <Txt kind="display" accessibilityRole="header">{step === 'enter' ? t.title : t.codeTitle}</Txt>
-          <Txt kind="lead" color={colors.muted}>
-            {step === 'enter' ? t.lead : t.codeLead(target?.kind === 'phone' ? formatIsraeliPhone(target.phone) : (target?.email ?? ''))}
+          <Txt kind="display" accessibilityRole="header">{step === 'enter' ? tx.title : tx.codeTitle}</Txt>
+          <Txt kind="lead" color={t.onHeroMuted}>
+            {step === 'enter' ? tx.lead : tx.codeLead(target?.kind === 'phone' ? formatIsraeliPhone(target.phone) : (target?.email ?? ''))}
           </Txt>
         </View>
 
         <DemoBanner />
-        {DEMO && step === 'code' ? <Txt kind="small" color={colors.muted} style={{ marginTop: -4, marginBottom: 12 }}>במצב הדגמה כל קוד בן 6 ספרות מתקבל.</Txt> : null}
+        {DEMO && step === 'code' ? <Txt kind="small" color={t.onHeroMuted} style={{ marginTop: -4, marginBottom: 12 }}>במצב הדגמה כל קוד בן 6 ספרות מתקבל.</Txt> : null}
 
         {step === 'enter' ? (
           <>
@@ -174,7 +176,7 @@ export default function SignIn() {
         )}
 
         {error ? (
-          <Txt kind="label" color={colors.ink} style={{ marginTop: 10 }} accessibilityLiveRegion="polite" accessibilityRole="alert">
+          <Txt kind="label" color={t.onHero} style={{ marginTop: 10 }} accessibilityLiveRegion="polite" accessibilityRole="alert">
             {error}
           </Txt>
         ) : null}
@@ -191,13 +193,13 @@ export default function SignIn() {
                 accessibilityState={{ disabled: wait > 0 }}
                 style={{ minHeight: touch, justifyContent: 'center', alignItems: 'center' }}
               >
-                <Txt kind="label" color={colors.muted}>{wait > 0 ? `אפשר לשלוח שוב בעוד ${wait} שניות` : 'שליחת קוד חדש'}</Txt>
+                <Txt kind="label" color={t.onHeroMuted}>{wait > 0 ? `אפשר לשלוח שוב בעוד ${wait} שניות` : 'שליחת קוד חדש'}</Txt>
               </Pressable>
             </>
           )}
         </View>
 
-        <Txt kind="small" color={colors.muted} style={{ marginTop: 24 }}>
+        <Txt kind="small" color={t.onHeroMuted} style={{ marginTop: 24 }}>
           בכניסה אתם מאשרים את מדיניות הפרטיות. Perko בשלב גישה מוקדמת.
         </Txt>
       </Screen>
@@ -207,12 +209,13 @@ export default function SignIn() {
 
 /** Two-option pill switch: email or phone. */
 function MethodSwitch({ method, onChange }: { method: Method; onChange: (m: Method) => void }) {
+  const { t } = useTheme();
   const options: { id: Method; label: string }[] = [
     { id: 'email', label: 'אימייל' },
     { id: 'phone', label: 'טלפון' },
   ];
   return (
-    <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'flex-start', backgroundColor: colors.inkOnLime14, borderRadius: radius.pill, padding: 4, marginBottom: 16 }}>
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', alignSelf: 'flex-start', backgroundColor: t.heroTint, borderRadius: radius.pill, padding: 4, marginBottom: 16 }}>
       {options.map((o) => {
         const on = o.id === method;
         return (
@@ -222,9 +225,9 @@ function MethodSwitch({ method, onChange }: { method: Method; onChange: (m: Meth
             accessibilityRole="tab"
             accessibilityLabel={`כניסה עם ${o.label}`}
             accessibilityState={{ selected: on }}
-            style={{ minHeight: touch - 4, minWidth: 96, paddingHorizontal: 18, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.ink : 'transparent' }}
+            style={{ minHeight: touch - 4, minWidth: 96, paddingHorizontal: 18, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.accent : 'transparent' }}
           >
-            <Txt kind="label" weight={700} color={on ? colors.lime : colors.ink}>{o.label}</Txt>
+            <Txt kind="label" weight={700} color={on ? t.onAccent : t.onHero}>{o.label}</Txt>
           </Pressable>
         );
       })}
@@ -234,25 +237,27 @@ function MethodSwitch({ method, onChange }: { method: Method; onChange: (m: Meth
 
 type FieldProps = React.ComponentProps<typeof TextInput> & { label: string; big?: boolean };
 
-const Field = ({ ref, label, big, ...input }: FieldProps & { ref?: React.Ref<React.ComponentRef<typeof TextInput>> }) => (
+const Field = ({ ref, label, big, ...input }: FieldProps & { ref?: React.Ref<React.ComponentRef<typeof TextInput>> }) => {
+  const { t } = useTheme();
+  return (
   <View style={{ gap: 8 }}>
     <Txt kind="label">{label}</Txt>
     <TextInput
       ref={ref}
       accessibilityLabel={label}
-      placeholderTextColor="rgba(48, 54, 38, 0.45)"
-      selectionColor={colors.ink}
-      cursorColor={colors.ink}
+      placeholderTextColor={t.placeholder}
+      selectionColor={t.text}
+      cursorColor={t.text}
       {...input}
       style={{
         minHeight: 60,
         borderRadius: radius.row,
-        backgroundColor: colors.paper,
+        backgroundColor: t.surface,
         paddingHorizontal: 18,
         fontFamily: fonts[big ? 800 : 600],
         fontSize: big ? 30 : 22,
         letterSpacing: big ? 8 : 1,
-        color: colors.ink,
+        color: t.text,
         // Numbers read left to right in the RTL app; centred so the alignment is the same either way.
         textAlign: 'center',
         writingDirection: 'ltr',
@@ -260,3 +265,4 @@ const Field = ({ ref, label, big, ...input }: FieldProps & { ref?: React.Ref<Rea
     />
   </View>
 );
+};

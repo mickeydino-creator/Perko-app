@@ -5,11 +5,14 @@ import { formatDate, PlaceInfo, RulesBox } from '../../components/CardViews';
 import { Progress } from '../../components/Stamps';
 import { Txt } from '../../components/Txt';
 import { Avatar, Button, LoadState, Reveal, Screen, Tag, TopBar } from '../../components/ui';
+import { OnBrand } from '../../components/surface';
+import { useTheme } from '../../lib/appearance';
 import { api } from '../../lib/api';
 import { useLoad } from '../../lib/hooks';
 import { colors, radius } from '../../theme';
 
 export default function CardDetail() {
+  const { t } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, loading, reload } = useLoad(() => api.getCard(id), [id]);
   const card = data?.card;
@@ -23,6 +26,7 @@ export default function CardDetail() {
       {card ? (
         <Reveal style={{ gap: 12 }}>
           {/* Website: Solution.astro .card-detail */}
+          <OnBrand>
           <View style={{ backgroundColor: colors.lime, borderRadius: radius.card, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <Avatar initial={card.business.initial} tone="onLime" size={52} />
@@ -45,21 +49,22 @@ export default function CardDetail() {
               <Button label="מימוש ההטבה" onPress={() => router.push({ pathname: '/redeem/[id]', params: { id: card.id } })} style={{ marginTop: 18 }} hint="פותח את מסך ההטבה להצגה בקופה" />
             ) : null}
           </View>
+          </OnBrand>
 
           <RulesBox program={card.program} />
 
-          <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 14 }}>
+          <View style={{ backgroundColor: t.surface, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 14 }}>
             <Txt kind="label" weight={800} style={{ marginBottom: 6 }} accessibilityRole="header">היסטוריה</Txt>
             {data!.events.length === 0 ? (
-              <Txt size={15} color={colors.muted}>עוד לא נאספו {unit} בכרטיס הזה.</Txt>
+              <Txt size={15} color={t.textMuted}>עוד לא נאספו {unit} בכרטיס הזה.</Txt>
             ) : (
               data!.events.map((e) => (
-                <View key={e.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.pale }}>
+                <View key={e.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderTopWidth: 1, borderTopColor: t.surfaceAlt }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: colors.ink }} />
+                    <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: t.accent }} />
                     <Txt size={15} weight={600}>{card.program.type === 'points' ? `${e.amount} נקודות` : e.amount === 1 ? 'חותמת' : `${e.amount} חותמות`}</Txt>
                   </View>
-                  <Txt size={14} color={colors.muted}>{formatDate(e.createdAt)}</Txt>
+                  <Txt size={14} color={t.textMuted}>{formatDate(e.createdAt)}</Txt>
                 </View>
               ))
             )}

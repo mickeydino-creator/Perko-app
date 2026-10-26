@@ -3,11 +3,13 @@ import { View } from 'react-native';
 import { formatDay, HeroCard } from '../../components/CardViews';
 import { Txt } from '../../components/Txt';
 import { DemoBanner, Heading, LoadState, Screen } from '../../components/ui';
+import { useTheme } from '../../lib/appearance';
 import { api } from '../../lib/api';
 import { useLoad } from '../../lib/hooks';
-import { colors, radius, TAB_CLEARANCE } from '../../theme';
+import { radius, TAB_CLEARANCE } from '../../theme';
 
 export default function Rewards() {
+  const { t } = useTheme();
   const { data, error, loading, reload } = useLoad(async () => {
     const [cards, history] = await Promise.all([api.listCards(), api.listRedemptions()]);
     return { ready: cards.filter((c) => c.status === 'complete'), history };
@@ -29,23 +31,23 @@ export default function Rewards() {
               ))}
             </View>
           ) : (
-            <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, padding: 16 }}>
-              <Txt color={colors.muted}>עוד אין הטבה מוכנה. כשכרטיס מתמלא, ההטבה מופיעה כאן.</Txt>
+            <View style={{ backgroundColor: t.surface, borderRadius: radius.row, padding: 16 }}>
+              <Txt color={t.textMuted}>עוד אין הטבה מוכנה. כשכרטיס מתמלא, ההטבה מופיעה כאן.</Txt>
             </View>
           )}
 
           <Txt kind="label" size={17} weight={700} style={{ marginTop: 26, marginBottom: 10 }} accessibilityRole="header">מומשו</Txt>
           {data.history.length ? (
-            <View style={{ backgroundColor: colors.paper, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 6 }}>
+            <View style={{ backgroundColor: t.surface, borderRadius: radius.row, paddingHorizontal: 16, paddingVertical: 6 }}>
               {data.history.map((r, i) => (
-                <View key={r.id} style={{ paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: colors.pale }}>
+                <View key={r.id} style={{ paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: t.surfaceAlt }}>
                   <Txt kind="label" weight={700}>{r.reward}</Txt>
-                  <Txt size={14} color={colors.muted}>{r.businessName} · {formatDay(r.createdAt)}</Txt>
+                  <Txt size={14} color={t.textMuted}>{r.businessName} · {formatDay(r.createdAt)}</Txt>
                 </View>
               ))}
             </View>
           ) : (
-            <Txt color={colors.muted}>עוד לא מומשו הטבות.</Txt>
+            <Txt color={t.textMuted}>עוד לא מומשו הטבות.</Txt>
           )}
         </>
       ) : null}
