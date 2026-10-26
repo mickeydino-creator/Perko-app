@@ -9,6 +9,8 @@
     "address": "רחוב ומספר, ירושלים",
     "hours": "א׳-ה׳ 7:00-19:00, ו׳ 7:00-14:00",
     "website": null,
+    "lat": null,
+    "lng": null,
     "program": {
       "name": "כרטיס קפה",
       "type": "stamps",

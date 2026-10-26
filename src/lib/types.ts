@@ -34,6 +34,9 @@ export type Business = {
   hours: string | null;
   website: string | null;
   isSample: boolean;
+  /** Map position; null when the business has no location yet. */
+  lat: number | null;
+  lng: number | null;
   program: Program | null;
 };
 

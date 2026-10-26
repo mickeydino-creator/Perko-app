@@ -45,6 +45,8 @@ function db() {
 type PilotBusiness = {
   slug: string; name: string; kind: string; category: 'cafe' | 'food' | 'shop'; initial: string; tone?: 'lime' | 'ink' | 'pale';
   address?: string; hours?: string; website?: string; is_sample?: boolean;
+  /** Map position (WGS84). Both or neither; without them the business is listed but not pinned. */
+  lat?: number; lng?: number;
   program: { name: string; type: 'stamps' | 'points'; goal: number; step?: number; reward: string; rule: string; redeem_rule?: string; cooldown_minutes?: number };
 };
 

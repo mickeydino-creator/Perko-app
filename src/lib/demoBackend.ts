@@ -21,27 +21,27 @@ const program = (n: number, p: Omit<Program, 'id' | 'redeemRule' | 'cooldownMinu
 export const SAMPLE_BUSINESSES: Business[] = [
   {
     id: 'a0000000-0000-4000-8000-000000000001', name: 'קפה פינה', kind: 'בית קפה שכונתי', category: 'cafe', initial: 'פ', tone: 'lime',
-    address: 'כתובת לדוגמה, עמק רפאים', hours: 'שעות לדוגמה: א׳-ה׳ 7:00-19:00, ו׳ 7:00-14:00', website: null, isSample: true,
+    address: 'כתובת לדוגמה, עמק רפאים', hours: 'שעות לדוגמה: א׳-ה׳ 7:00-19:00, ו׳ 7:00-14:00', website: null, isSample: true, lat: 31.7629, lng: 35.2191,
     program: program(1, { name: 'כרטיס קפה', type: 'stamps', goal: 10, step: 1, reward: 'קפה הפוך עלינו', rule: 'חותמת על כל משקה חם' }),
   },
   {
     id: 'a0000000-0000-4000-8000-000000000002', name: 'זעתר', kind: 'מסעדה שכונתית', category: 'food', initial: 'ז', tone: 'ink',
-    address: 'כתובת לדוגמה, עמק רפאים', hours: 'שעות לדוגמה: א׳-ה׳ 12:00-23:00', website: null, isSample: true,
+    address: 'כתובת לדוגמה, עמק רפאים', hours: 'שעות לדוגמה: א׳-ה׳ 12:00-23:00', website: null, isSample: true, lat: 31.7612, lng: 35.218,
     program: program(2, { name: 'כרטיס ארוחות', type: 'stamps', goal: 6, step: 1, reward: 'קינוח לשניים', rule: 'חותמת על כל ארוחה במקום' }),
   },
   {
     id: 'a0000000-0000-4000-8000-000000000003', name: 'דפדוף', kind: 'חנות ספרים מקומית', category: 'shop', initial: 'ד', tone: 'pale',
-    address: 'כתובת לדוגמה, דרך בית לחם', hours: 'שעות לדוגמה: א׳-ה׳ 10:00-20:00, ו׳ 9:00-14:00', website: null, isSample: true,
+    address: 'כתובת לדוגמה, דרך בית לחם', hours: 'שעות לדוגמה: א׳-ה׳ 10:00-20:00, ו׳ 9:00-14:00', website: null, isSample: true, lat: 31.7568, lng: 35.2213,
     program: program(3, { name: 'מועדון קוראים', type: 'points', goal: 200, step: 20, reward: 'שובר 30 ₪ לקנייה הבאה', rule: '20 נקודות על כל קנייה' }),
   },
   {
     id: 'a0000000-0000-4000-8000-000000000004', name: 'מאפיית הגפן', kind: 'מאפייה', category: 'food', initial: 'מ', tone: 'lime',
-    address: 'כתובת לדוגמה, דרך בית לחם', hours: 'שעות לדוגמה: א׳-ו׳ 6:30-15:00', website: null, isSample: true,
+    address: 'כתובת לדוגמה, דרך בית לחם', hours: 'שעות לדוגמה: א׳-ו׳ 6:30-15:00', website: null, isSample: true, lat: 31.755, lng: 35.222,
     program: program(4, { name: 'כרטיס מאפים', type: 'stamps', goal: 8, step: 1, reward: 'מאפה לבחירה', rule: 'חותמת על כל קנייה מעל 20 ₪' }),
   },
   {
     id: 'a0000000-0000-4000-8000-000000000005', name: 'פרחי השדרה', kind: 'חנות פרחים', category: 'shop', initial: 'פ', tone: 'pale',
-    address: 'כתובת לדוגמה, עמק רפאים', hours: 'שעות לדוגמה: א׳-ה׳ 9:00-19:00, ו׳ 8:00-14:00', website: null, isSample: true,
+    address: 'כתובת לדוגמה, עמק רפאים', hours: 'שעות לדוגמה: א׳-ה׳ 9:00-19:00, ו׳ 8:00-14:00', website: null, isSample: true, lat: 31.7598, lng: 35.2172,
     program: program(5, { name: 'כרטיס פרחים', type: 'stamps', goal: 5, step: 1, reward: 'זר קטן', rule: 'חותמת על כל זר' }),
   },
 ];

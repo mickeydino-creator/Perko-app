@@ -76,6 +76,14 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Perko משתמשת במיקום רק כדי להראות במפה עסקים קרובים אליך. המיקום נשאר בטלפון ולא נשלח לשרת.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
+      [
         "expo-navigation-bar",
         {
           "style": "dark",

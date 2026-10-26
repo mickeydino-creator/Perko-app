@@ -69,3 +69,10 @@ export function QrGlyph({ size = 24, color = colors.ink, bg = colors.paper }: P 
     </Svg>
   );
 }
+/** "My location": a solid dot in a ring. */
+export const LocateIcon = ({ size = 24, color = colors.ink }: P) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 2.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z" fill={color} />
+    <Circle cx={12} cy={12} r={3.5} fill={color} />
+  </Svg>
+);

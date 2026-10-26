@@ -147,6 +147,25 @@ Local stack instead (needs Docker): `npx supabase start`, then `npx supabase db 
 - The rules live once in `supabase/functions/_shared/loyalty.ts` and `token.ts` (no imports), used by the
   functions, the app (labels, demo mode) and the tests.
 
+## The Discover map
+
+Discover has a "רשימה | מפה" switch. The map (react-native-maps: Apple Maps on iOS, Google Maps on Android) pins every
+business that has `lat`/`lng`, with the same search and category filters as the list; tapping a pin shows the
+business card with "הוספה" and a link to its page.
+
+- **Location:** asked the first time the map opens (`expo-location`, while in use only). It is used on the phone for
+  the blue dot, "my location" and distances (the list then sorts closest first); it is never sent to the server or
+  stored. Without permission the map just shows the businesses.
+- **Data:** `businesses.lat` / `lng` (migration `20261027090000_business_location.sql`), set with
+  `businesses:upsert`. The sample businesses have approximate points on Emek Refaim and Derech Beit Lechem,
+  illustrations like the businesses themselves.
+- **Expo Go** shows the map on both platforms with no setup. **An Android build needs a Google Maps API key**
+  (Google Cloud → Maps SDK for Android, restricted to `org.perko.app` and the signing certificate): add
+  `["react-native-maps", { "androidGoogleMapsApiKey": "..." }]` to the plugins in `app.json`. iOS uses Apple Maps
+  and needs no key.
+- The web preview has no map (react-native-maps is native only) and shows a note instead; screen-reader users get
+  the list, where each row also reads the distance.
+
 ## The wallet stack
 
 The home screen shows the cards as physical cards (ID-1 proportions 1.586:1, 20 dp corners, elevation, a 1 dp top-edge
@@ -241,7 +260,7 @@ in a build, not in Expo Go.
    (`update businesses set active = false where is_sample`).
 4. Printed counter QR codes per business, and a short staff briefing (what an eligible purchase is, how redemption
    looks, the live code).
-5. Privacy policy (Hebrew, covering phone numbers and visit history) published and linked in `src/lib/config.ts`,
+5. Privacy policy (Hebrew, covering phone numbers, visit history and the on-device use of location) published and linked in `src/lib/config.ts`,
    plus the Play Console data-safety form and the account-deletion URL.
 6. Google Play developer account, app signing, `org.perko.app` package name confirmed, store listing, internal
    testing track (`eas build --profile production` + `eas submit`).

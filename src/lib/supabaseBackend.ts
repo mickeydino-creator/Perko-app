@@ -39,6 +39,8 @@ const toBusiness = (b: any, program: Program | null): Business => ({
   hours: b.hours,
   website: b.website,
   isSample: b.is_sample,
+  lat: b.lat ?? null,
+  lng: b.lng ?? null,
   program,
 });
 
