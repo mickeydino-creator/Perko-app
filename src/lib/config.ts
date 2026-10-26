@@ -7,6 +7,10 @@ export const DEMO = !SUPABASE_URL || !SUPABASE_ANON_KEY;
 /** Sign-in by SMS is hidden until an SMS provider is set up; email codes are the only option for now. */
 export const PHONE_SIGN_IN = false;
 
+/** Social sign-in (browser flow). Google needs the provider enabled in Supabase; Apple needs an Apple Developer account. */
+export const GOOGLE_SIGN_IN = true;
+export const APPLE_SIGN_IN = false;
+
 /** Must match Authentication > Providers > Email > Email OTP Length in the Supabase project. */
 export const EMAIL_CODE_LENGTH = 6;
 

@@ -138,6 +138,16 @@ export function createDemoBackend(): Backend {
       await save();
       return s.profile!;
     },
+    async signInWithProvider(provider) {
+      await delay();
+      const s = await load();
+      const email = provider === 'google' ? 'demo@gmail.com' : 'demo@privaterelay.appleid.com';
+      if (!s.profile || s.profile.email !== email) {
+        Object.assign(s, { ...empty, profile: { id: 'demo-user', phone: '', email, name: 'משתמש הדגמה' }, ...starterWallet() });
+      }
+      await save();
+      return s.profile!;
+    },
     async currentProfile() {
       return (await load()).profile;
     },

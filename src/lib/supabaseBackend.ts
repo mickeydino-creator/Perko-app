@@ -1,6 +1,8 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, FunctionsFetchError, FunctionsHttpError, type User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import { AppState, Platform } from 'react-native';
 import { AuthError, NetworkError, type Backend } from './backend';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config';
@@ -71,6 +73,13 @@ export function createSupabaseBackend(): Backend {
     return { id: user.id, phone: user.phone ? `+${user.phone.replace(/^\+/, '')}` : '', email: user.email ?? null, name: data?.name ?? null };
   };
 
+  /** First sign-in: create the profile row; a Google account brings its name along. */
+  const ensureProfile = async (user: User) => {
+    const meta = user.user_metadata as { full_name?: string; name?: string } | undefined;
+    const name = (meta?.full_name ?? meta?.name ?? '').trim().slice(0, 60) || null;
+    await sb.from('profiles').upsert({ id: user.id, name }, { onConflict: 'id', ignoreDuplicates: true });
+  };
+
   const check = <T>(res: { data: T; error: any }): T => {
     if (res.error) {
       if (/fetch|network/i.test(String(res.error.message))) throw new NetworkError(res.error.message);
@@ -115,8 +124,40 @@ export function createSupabaseBackend(): Backend {
         target.kind === 'phone' ? { phone: target.phone, token, type: 'sms' } : { email: target.email, token, type: 'email' },
       );
       if (error || !data.user) throw new AuthError(error?.message ?? 'otp');
-      await sb.from('profiles').upsert({ id: data.user.id }, { onConflict: 'id', ignoreDuplicates: true });
+      await ensureProfile(data.user);
       return profileOf(data.user);
+    },
+    async signInWithProvider(provider) {
+      // perko://auth/callback in a build, exp://<host>/--/auth/callback in Expo Go. Both must be listed in
+      // Supabase > Authentication > URL Configuration > Redirect URLs (perko://** and exp://**).
+      const redirectTo = Linking.createURL('auth/callback');
+      const { data, error } = await sb.auth.signInWithOAuth({ provider, options: { redirectTo, skipBrowserRedirect: true } });
+      if (error || !data.url) {
+        if (error && /fetch|network/i.test(error.message)) throw new NetworkError(error.message);
+        throw new AuthError(error?.message ?? 'oauth');
+      }
+      const res = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      if (res.type !== 'success') return null; // closed or dismissed
+
+      // Tokens come back in the fragment (implicit flow) or a code in the query (PKCE).
+      const params = new URLSearchParams();
+      const [beforeHash, hash] = res.url.split('#');
+      const query = beforeHash.split('?')[1];
+      for (const part of [query, hash]) if (part) new URLSearchParams(part).forEach((v, k) => params.set(k, v));
+      if (params.get('error')) throw new AuthError(params.get('error_description') ?? params.get('error') ?? 'oauth');
+
+      const code = params.get('code');
+      const access_token = params.get('access_token');
+      const refresh_token = params.get('refresh_token');
+      const session = code
+        ? await sb.auth.exchangeCodeForSession(code)
+        : access_token && refresh_token
+          ? await sb.auth.setSession({ access_token, refresh_token })
+          : null;
+      const user = session?.data.session?.user;
+      if (!session || session.error || !user) throw new AuthError(session?.error?.message ?? 'oauth');
+      await ensureProfile(user);
+      return profileOf(user);
     },
     async currentProfile() {
       const { data } = await sb.auth.getSession();

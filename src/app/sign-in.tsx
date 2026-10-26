@@ -1,7 +1,7 @@
 import { Redirect, router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import { KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
 import { formatIsraeliPhone, normalizeEmail, normalizeIsraeliPhone } from '../../supabase/functions/_shared/loyalty.ts';
 import { Wordmark } from '../components/Brand';
 import { Txt } from '../components/Txt';
@@ -9,19 +9,22 @@ import { Button, DemoBanner, Screen, TopBar } from '../components/ui';
 import { useTheme } from '../lib/appearance';
 import { api } from '../lib/api';
 import { NetworkError } from '../lib/backend';
-import { DEMO, EMAIL_CODE_LENGTH, PHONE_SIGN_IN, PRIVACY_POLICY_URL, TERMS_URL } from '../lib/config';
+import { APPLE_SIGN_IN, DEMO, EMAIL_CODE_LENGTH, GOOGLE_SIGN_IN, PHONE_SIGN_IN, PRIVACY_POLICY_URL, TERMS_URL } from '../lib/config';
 import { useSession } from '../lib/session';
-import type { SignInTarget } from '../lib/types';
-import { fonts, radius, touch } from '../theme';
+import type { OAuthProvider, SignInTarget } from '../lib/types';
+import Svg, { Path } from 'react-native-svg';
+import { colors, fonts, radius, touch } from '../theme';
 
 const RESEND_SECONDS = 30;
+/** Social buttons first, email as the second option. */
+const SOCIAL = GOOGLE_SIGN_IN || APPLE_SIGN_IN;
 
 type Method = 'email' | 'phone';
 
 const copy = {
   email: {
-    title: 'כניסה עם\nאימייל',
-    lead: 'נשלח קוד חד-פעמי למייל. הכתובת משמשת רק לכניסה לחשבון.',
+    title: 'כניסה\nל-Perko',
+    lead: SOCIAL ? 'ממשיכים עם חשבון Google, או מקבלים קוד חד-פעמי במייל.' : 'נשלח קוד חד-פעמי למייל. הכתובת משמשת רק לכניסה לחשבון.',
     codeTitle: 'הקוד שקיבלתם\nבמייל',
     codeLead: (to: string) => `שלחנו קוד אל ${to}. אם הוא לא מגיע, כדאי לבדוק גם בספאם.`,
     invalid: 'כתובת אימייל, למשל noa@example.com',
@@ -47,6 +50,9 @@ export default function SignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wait, setWait] = useState(0);
+  // With social sign-in, the email form opens only on request.
+  const [emailOpen, setEmailOpen] = useState(!SOCIAL);
+  const [oauthBusy, setOauthBusy] = useState<OAuthProvider | null>(null);
   const codeRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   const e164 = normalizeIsraeliPhone(phone);
@@ -97,6 +103,22 @@ export default function SignIn() {
     }
   };
 
+  const social = async (provider: OAuthProvider) => {
+    setOauthBusy(provider);
+    setError(null);
+    try {
+      const p = await api.signInWithProvider(provider);
+      if (p) {
+        setProfile(p);
+        router.replace('/');
+      }
+    } catch (e) {
+      setError(e instanceof NetworkError ? 'אין חיבור לאינטרנט. בודקים את החיבור ומנסים שוב.' : 'הכניסה לא הושלמה. מנסים שוב, או נכנסים עם אימייל.');
+    } finally {
+      setOauthBusy(null);
+    }
+  };
+
   const switchTo = (m: Method) => {
     setMethod(m);
     setError(null);
@@ -119,7 +141,21 @@ export default function SignIn() {
         <DemoBanner />
         {DEMO && step === 'code' ? <Txt kind="small" color={t.onHeroMuted} style={{ marginTop: -4, marginBottom: 12 }}>במצב הדגמה כל קוד בן 6 ספרות מתקבל.</Txt> : null}
 
-        {step === 'enter' ? (
+        {step === 'enter' && SOCIAL ? (
+          <View style={{ gap: 10, marginBottom: 18 }}>
+            {GOOGLE_SIGN_IN ? <GoogleButton onPress={() => social('google')} busy={oauthBusy === 'google'} /> : null}
+            {APPLE_SIGN_IN ? <AppleButton onPress={() => social('apple')} busy={oauthBusy === 'apple'} /> : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <View style={{ flex: 1, height: 1, backgroundColor: t.heroTint }} />
+              <Txt kind="label" color={t.onHeroMuted}>או</Txt>
+              <View style={{ flex: 1, height: 1, backgroundColor: t.heroTint }} />
+            </View>
+          </View>
+        ) : null}
+
+        {step === 'enter' && !emailOpen ? (
+          <Button label="כניסה עם אימייל" variant="quiet" onPress={() => setEmailOpen(true)} hint="פותח שדה לכתובת אימייל, ונשלח אליה קוד חד-פעמי" />
+        ) : step === 'enter' ? (
           <>
             {PHONE_SIGN_IN ? <MethodSwitch method={method} onChange={switchTo} /> : null}
             {method === 'email' ? (
@@ -184,7 +220,7 @@ export default function SignIn() {
 
         <View style={{ marginTop: 24, gap: 8 }}>
           {step === 'enter' ? (
-            <Button label="שליחת קוד" onPress={send} busy={busy} />
+            emailOpen ? <Button label="שליחת קוד" onPress={send} busy={busy} /> : null
           ) : (
             <>
               <Button label="כניסה" onPress={() => verify()} busy={busy} disabled={code.length !== codeMax} />
@@ -201,7 +237,7 @@ export default function SignIn() {
         </View>
 
         <Txt kind="small" color={t.onHeroMuted} style={{ marginTop: 24 }}>
-          הכתובת או המספר משמשים רק לכניסה לחשבון ולשליחת קוד חד-פעמי, ונשמרים אצל ספק הענן שלנו. בכניסה אתם מאשרים את{' '}
+          פרטי הכניסה (כתובת המייל, ובכניסה עם Google גם השם שבחשבון) משמשים רק לכניסה לחשבון, ונשמרים אצל ספק הענן שלנו. בכניסה אתם מאשרים את{' '}
           <LegalLink label="תנאי השימוש" url={TERMS_URL} /> ואת <LegalLink label="מדיניות הפרטיות" url={PRIVACY_POLICY_URL} />. Perko בשלב גישה מוקדמת.
         </Txt>
       </Screen>
@@ -222,6 +258,58 @@ function LegalLink({ label, url }: { label: string; url: string | null }) {
     >
       {label}
     </Txt>
+  );
+}
+
+/** "Continue with Google" per Google's branding guidelines: the four-colour G, light or dark neutral pill. */
+function GoogleButton({ onPress, busy }: { onPress: () => void; busy: boolean }) {
+  const { t } = useTheme();
+  const bg = t.dark ? '#131314' : '#FFFFFF';
+  const fg = t.dark ? '#E3E3E3' : '#1F1F1F';
+  const stroke = t.dark ? '#8E918F' : '#747775';
+  return (
+    <Pressable
+      onPress={busy ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityLabel="המשך עם Google"
+      accessibilityState={{ busy }}
+      style={({ pressed }) => ({
+        minHeight: 56, borderRadius: radius.pill, borderWidth: 1, borderColor: stroke, backgroundColor: bg,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, opacity: pressed || busy ? 0.8 : 1,
+      })}
+    >
+      {busy ? <ActivityIndicator color={fg} /> : (
+        <>
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Svg width={20} height={20} viewBox="0 0 48 48">
+            <Path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+            <Path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+            <Path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+            <Path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+          </Svg>
+          </View>
+          <Txt kind="label" size={17} weight={600} color={fg}>המשך עם Google</Txt>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
+/** "Continue with Apple" (Apple's guidelines: black pill, or white on dark). Shown once APPLE_SIGN_IN is on. */
+function AppleButton({ onPress, busy }: { onPress: () => void; busy: boolean }) {
+  const { t } = useTheme();
+  const bg = t.dark ? colors.paper : '#000000';
+  const fg = t.dark ? '#000000' : '#FFFFFF';
+  return (
+    <Pressable
+      onPress={busy ? undefined : onPress}
+      accessibilityRole="button"
+      accessibilityLabel="המשך עם Apple"
+      accessibilityState={{ busy }}
+      style={({ pressed }) => ({ minHeight: 56, borderRadius: radius.pill, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', opacity: pressed || busy ? 0.8 : 1 })}
+    >
+      {busy ? <ActivityIndicator color={fg} /> : <Txt kind="label" size={17} weight={600} color={fg}>המשך עם Apple</Txt>}
+    </Pressable>
   );
 }
 
