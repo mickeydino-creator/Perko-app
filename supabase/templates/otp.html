@@ -9,7 +9,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     /* Perko one-time code email. Brand: acid lime #D7FF35, ink #11130F, off-white #F8F8F4, muted #303626.
-       Tables and inline styles for mail clients; Heebo where the client loads web fonts, Arial otherwise. */
+       Tables and inline styles for mail clients. Gmail and Outlook never load web fonts (only Apple Mail does),
+       so the design is built to hold on system fonts: Segoe UI on Windows, SF on Apple, Roboto on Android.
+       The brand comes from colour, shapes and weight, not from Heebo. */
     body { margin: 0; padding: 0; background: #EBECE4; }
     @media (max-width: 520px) {
       .px { padding-left: 24px !important; padding-right: 24px !important; }
@@ -26,12 +28,12 @@
     <tr>
       <td align="center" style="padding:32px 12px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="rtl"
-               style="max-width:480px; border-collapse:separate; font-family:'Heebo', Arial, 'Helvetica Neue', sans-serif; color:#11130F;">
+               style="max-width:480px; border-collapse:separate; font-family:'Heebo', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Noto Sans Hebrew', Arial, sans-serif; color:#11130F;">
 
           <!-- Lime header with the wordmark: "perk" + a solid disc as the "o" -->
           <tr>
             <td class="px" style="background:#D7FF35; border-radius:28px 28px 0 0; padding:28px 36px 24px;" dir="ltr" align="left">
-              <span style="font-size:30px; font-weight:800; letter-spacing:-1.6px; color:#11130F; line-height:1;">perk</span><span style="display:inline-block; width:15px; height:15px; border-radius:50%; background:#11130F; margin-left:1px; vertical-align:baseline;"></span>
+              <span style="font-family:'Heebo', 'Arial Black', 'Segoe UI Black', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif; font-size:30px; font-weight:900; letter-spacing:-1.4px; color:#11130F; line-height:1;">perk</span><span style="display:inline-block; width:15px; height:15px; border-radius:50%; background:#11130F; margin-left:1px; vertical-align:baseline;"></span>
             </td>
           </tr>
 
@@ -49,7 +51,7 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
                   <td align="center" dir="ltr" style="background:#11130F; border-radius:22px; padding:22px 16px;">
-                    <span class="code" style="font-family:'Heebo', Arial, sans-serif; font-size:42px; font-weight:800; letter-spacing:10px; color:#D7FF35; line-height:1;">{{ .Token }}</span>
+                    <span class="code" style="font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif; font-size:42px; font-weight:700; letter-spacing:10px; color:#D7FF35; line-height:1;">{{ .Token }}</span>
                   </td>
                 </tr>
               </table>
