@@ -10,8 +10,8 @@ export const PHONE_SIGN_IN = false;
 /** Must match Authentication > Providers > Email > Email OTP Length in the Supabase project. */
 export const EMAIL_CODE_LENGTH = 6;
 
-/** Legal pages on the marketing site (perko-marketing, src/pages), at its Vercel address until Perko has its own domain. */
-export const PRIVACY_POLICY_URL: string | null = 'https://perko-marketing.vercel.app/privacy';
-export const TERMS_URL: string | null = 'https://perko-marketing.vercel.app/terms';
-export const ACCESSIBILITY_URL: string | null = 'https://perko-marketing.vercel.app/accessibility';
+/** Legal pages on the marketing site (perko-marketing, src/pages). */
+export const PRIVACY_POLICY_URL: string | null = 'https://www.getperko.com/privacy';
+export const TERMS_URL: string | null = 'https://www.getperko.com/terms';
+export const ACCESSIBILITY_URL: string | null = 'https://www.getperko.com/accessibility';
 export const CONTACT_EMAIL: string | null = null; // TODO before the pilot
