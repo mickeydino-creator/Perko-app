@@ -14,4 +14,4 @@ export const EMAIL_CODE_LENGTH = 6;
 export const PRIVACY_POLICY_URL: string | null = 'https://www.getperko.com/privacy';
 export const TERMS_URL: string | null = 'https://www.getperko.com/terms';
 export const ACCESSIBILITY_URL: string | null = 'https://www.getperko.com/accessibility';
-export const CONTACT_EMAIL: string | null = null; // TODO before the pilot
+export const CONTACT_EMAIL: string | null = 'hello@getperko.com';
