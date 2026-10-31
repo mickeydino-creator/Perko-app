@@ -14,12 +14,11 @@
 // Env (.env, never committed): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, QR_SECRET_V1 (QR_KEY_VERSION, default 1).
 // pins:set needs no PIN_SECRET: it asks the business-admin Edge Function, so the secret stays in Supabase.
 // Output: scripts/out/<slug>/<qr id>.png and .pdf (A6 counter card).
-import fontkit from '@pdf-lib/fontkit';
 import { createClient } from '@supabase/supabase-js';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
-import { PDFDocument, rgb } from 'pdf-lib';
 import QRCode from 'qrcode';
+import { cardFooter, counterCardPdf, QR_PNG_OPTIONS } from '../dashboard/lib/counterCard.ts';
 import { parseQrPayload, signQrPayload } from '../supabase/functions/_shared/token.ts';
 
 const { positionals, values: args } = parseArgs({
@@ -79,11 +78,7 @@ async function upsertBusinesses(file: string) {
 }
 
 // --- Printing -------------------------------------------------------------------------------------
-
-const LIME = rgb(0xd7 / 255, 0xff / 255, 0x35 / 255);
-const INK = rgb(0x11 / 255, 0x13 / 255, 0x0f / 255);
-const MUTED = rgb(0x30 / 255, 0x36 / 255, 0x26 / 255);
-const WHITE = rgb(1, 1, 1);
+// The card itself is drawn by dashboard/lib/counterCard.ts, shared with the owner dashboard.
 
 async function render(outDir: string, qrId: string, businessName: string, label?: string | null) {
   await renderPayload(outDir, await signQrPayload(qrSecret(), keyVersion, qrId), businessName, label);
@@ -94,54 +89,15 @@ async function renderPayload(outDir: string, payload: string, businessName: stri
   const parsed = parseQrPayload(payload);
   if (!parsed) fail(`Not a Perko counter code: ${payload}`);
   const qrId = parsed!.qrId;
-  const keyVersion = parsed!.version;
   mkdirSync(outDir, { recursive: true });
-  await QRCode.toFile(`${outDir}/${qrId}.png`, payload, { width: 1200, margin: 3, errorCorrectionLevel: 'M', color: { dark: '#11130F', light: '#FFFFFF' } });
+  await QRCode.toFile(`${outDir}/${qrId}.png`, payload, QR_PNG_OPTIONS);
 
-  // A6 counter card, 105 x 148 mm.
-  const pdf = await PDFDocument.create();
-  pdf.registerFontkit(fontkit);
   const fontDir = new URL('../node_modules/@expo-google-fonts/heebo/', import.meta.url);
-  const heavy = await pdf.embedFont(readFileSync(new URL('800ExtraBold/Heebo_800ExtraBold.ttf', fontDir)), { subset: true });
-  const regular = await pdf.embedFont(readFileSync(new URL('400Regular/Heebo_400Regular.ttf', fontDir)), { subset: true });
-  const W = 297.6, H = 419.5, M = 24;
-  const page = pdf.addPage([W, H]);
-  page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: LIME });
-
-  // Wordmark: "perk" (Heebo 800, tracking -0.055em, letter by letter) + a solid disc as the "o".
-  const wm = 30;
-  const base = H - M - wm * 0.8;
-  let x = M;
-  for (const ch of 'perk') {
-    page.drawText(ch, { x, y: base, size: wm, font: heavy, color: INK });
-    x += heavy.widthOfTextAtSize(ch, wm) - 0.055 * wm;
-  }
-  page.drawCircle({ x: x + 0.035 * wm + 0.25 * wm, y: base + 0.25 * wm, size: 0.25 * wm, color: INK });
-
-  // fontkit shapes Hebrew right to left itself: pass logical order, align to the right margin.
-  const right = (text: string, y: number, size: number, font = heavy, color = INK) =>
-    page.drawText(text, { x: W - M - font.widthOfTextAtSize(text, size), y, size, font, color });
-  right(businessName, H - 104, 24);
-  right('סורקים כאן אחרי רכישה מזכה', H - 126, 13, regular, MUTED);
-
-  // QR on a white rounded tile, drawn as vector modules.
-  const qr = QRCode.create(payload, { errorCorrectionLevel: 'M' });
-  const n = qr.modules.size;
-  const tile = 204;
-  const tileX = (W - tile) / 2;
-  const tileY = 74;
-  page.drawRectangle({ x: tileX, y: tileY, width: tile, height: tile, color: WHITE });
-  const pad = 14;
-  const cell = (tile - 2 * pad) / n;
-  for (let r = 0; r < n; r++)
-    for (let c = 0; c < n; c++)
-      if (qr.modules.get(r, c)) page.drawRectangle({ x: tileX + pad + c * cell, y: tileY + tile - pad - (r + 1) * cell, width: cell + 0.05, height: cell + 0.05, color: INK });
-
-  right('החותמת נוספת לכרטיס שלכם באפליקציה.', 52, 11, regular, INK);
-  right('כללי הצבירה וההטבה נקבעים על ידי העסק.', 39, 9, regular, MUTED);
-  page.drawText(`${label ? label + ' · ' : ''}${qrId.slice(0, 8)} · v${keyVersion}`.replace(/[^\x20-\x7E·]/g, ''), { x: M, y: 18, size: 7, font: regular, color: MUTED });
-
-  writeFileSync(`${outDir}/${qrId}.pdf`, await pdf.save());
+  const fonts = {
+    heavy: readFileSync(new URL('800ExtraBold/Heebo_800ExtraBold.ttf', fontDir)),
+    regular: readFileSync(new URL('400Regular/Heebo_400Regular.ttf', fontDir)),
+  };
+  writeFileSync(`${outDir}/${qrId}.pdf`, await counterCardPdf(payload, businessName, cardFooter(qrId, parsed!.version, label), fonts));
   console.log(`${outDir}/${qrId}.png\n${outDir}/${qrId}.pdf\npayload: ${payload}`);
 }
 
