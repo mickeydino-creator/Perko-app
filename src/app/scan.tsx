@@ -253,8 +253,8 @@ function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectO
       ) : null}
       {c.foot ? <Txt size={16} style={{ marginTop: 14 }}>{c.foot}</Txt> : null}
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
-        {c.primary === 'redeem' && 'cardId' in outcome ? (
-          <Button label="למימוש ההטבה" onPress={() => router.replace({ pathname: '/redeem/[id]', params: { id: outcome.cardId } })} />
+        {c.primary === 'redeem' && 'cardId' in outcome && outcome.cardId ? (
+          <Button label="למימוש ההטבה" onPress={() => router.replace({ pathname: '/redeem/[id]', params: { id: outcome.cardId! } })} />
         ) : null}
         {c.primary === 'retry' ? <Button label="לנסות שוב" onPress={onRetry} /> : null}
         {c.primary === 'again' ? <Button label="סריקה נוספת" onPress={onAgain} /> : null}
