@@ -1,16 +1,18 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Animated, Linking, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { cooldownMessage, remaining, remainingLabel } from '../../supabase/functions/_shared/loyalty.ts';
+import { cooldownMessage, lockedMessage, remaining, remainingLabel, wrongPinMessage } from '../../supabase/functions/_shared/loyalty.ts';
+import type { PendingCollect } from '../lib/types';
 import { CloseIcon } from '../components/Icons';
+import { PinPad } from '../components/PinPad';
 import { Progress } from '../components/Stamps';
 import { Txt } from '../components/Txt';
 import { Button } from '../components/ui';
 import { useTheme } from '../lib/appearance';
-import { collect, type CollectOutcome } from '../lib/collect';
+import { checkCollect, confirmCollect, type CollectOutcome } from '../lib/collect';
 import { DEMO } from '../lib/config';
 import { demoQrPayload, SAMPLE_BUSINESSES } from '../lib/demoBackend';
 import { useReduceMotion } from '../lib/hooks';
@@ -24,6 +26,8 @@ export default function Scan() {
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<CollectOutcome | null>(null);
+  // The scan may add a stamp: the staff member confirms with their PIN on this phone.
+  const [pending, setPending] = useState<{ payload: string; info: PendingCollect } | null>(null);
   const lastPayload = useRef<string | null>(null);
   const locked = useRef(false);
   const demoIndex = useRef(0);
@@ -33,22 +37,25 @@ export default function Scan() {
     locked.current = true;
     lastPayload.current = payload;
     setBusy(true);
-    const result = await collect(payload, 'qr');
+    const result = await checkCollect(payload, 'qr');
     setBusy(false);
-    setOutcome(result);
+    if (result.status === 'pin_required') setPending({ payload, info: result });
+    else setOutcome(result);
   }, []);
 
   // Opened from a perko:// link (the counter code scanned with the phone's own camera app).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- run() handles the link: it shows a spinner, then the answer
     if (params.payload) run(params.payload);
   }, [params.payload, run]);
 
   const onScanned = (r: BarcodeScanningResult) => {
-    if (!outcome && !busy) run(r.data);
+    if (!outcome && !pending && !busy) run(r.data);
   };
 
   const again = () => {
     setOutcome(null);
+    setPending(null);
     // Short pause so the same code still in frame is not read again instantly.
     setTimeout(() => (locked.current = false), 600);
   };
@@ -56,6 +63,7 @@ export default function Scan() {
     const p = lastPayload.current;
     locked.current = false;
     setOutcome(null);
+    setPending(null);
     if (p) run(p);
   };
   const close = () => (router.canGoBack() ? router.back() : router.replace('/'));
@@ -70,7 +78,7 @@ export default function Scan() {
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
           facing="back"
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={outcome || busy ? undefined : onScanned}
+          onBarcodeScanned={outcome || pending || busy ? undefined : onScanned}
           accessibilityLabel="תצוגת המצלמה"
         />
       ) : null}
@@ -90,7 +98,7 @@ export default function Scan() {
       </View>
 
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 28 }}>
-        {outcome ? null : !permission ? (
+        {outcome || pending ? null : !permission ? (
           <ActivityIndicator color={colors.lime} />
         ) : granted ? (
           <>
@@ -101,7 +109,7 @@ export default function Scan() {
         ) : (
           <PermissionAsk canAsk={permission.canAskAgain} onAsk={requestPermission} />
         )}
-        {DEMO && !outcome ? (
+        {DEMO && !outcome && !pending ? (
           <Button
             label="סריקת קוד לדוגמה"
             variant="lime"
@@ -117,6 +125,17 @@ export default function Scan() {
         ) : null}
       </View>
 
+      {pending && !outcome ? (
+        <PinSheet
+          payload={pending.payload}
+          info={pending.info}
+          onDone={(result) => {
+            setPending(null);
+            setOutcome(result);
+          }}
+          onCancel={close}
+        />
+      ) : null}
       {outcome ? <ResultSheet outcome={outcome} onAgain={again} onRetry={retry} onClose={close} /> : null}
     </View>
   );
@@ -152,8 +171,8 @@ function PermissionAsk({ canAsk, onAsk }: { canAsk: boolean; onAsk: () => void }
   );
 }
 
-/** The bottom sheet with the result (website .ui-sheet). Slides up with expo-out; no motion with reduce motion. */
-function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectOutcome; onAgain: () => void; onRetry: () => void; onClose: () => void }) {
+/** A bottom sheet (website .ui-sheet). Slides up with expo-out; no motion with reduce motion. */
+function Sheet({ children }: { children: ReactNode }) {
   const { t } = useTheme();
   const insets = useSafeAreaInsets();
   const reduce = useReduceMotion();
@@ -161,9 +180,7 @@ function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectO
   useEffect(() => {
     if (!reduce) Animated.timing(y, { toValue: 0, duration: 420, easing: motion.expoOut, useNativeDriver: true }).start();
   }, [reduce, y]);
-  const translateY = y.interpolate({ inputRange: [0, 1], outputRange: [0, 420] });
-
-  const c = content(outcome);
+  const translateY = y.interpolate({ inputRange: [0, 1], outputRange: [0, 620] });
   return (
     <Animated.View
       accessibilityViewIsModal
@@ -178,6 +195,51 @@ function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectO
       }}
     >
       <View style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: t.surfaceStrong, alignSelf: 'center', marginBottom: 14 }} />
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * "מציגים לקופאי/ת": the customer hands the phone to the staff member, who types their PIN. Only then is the
+ * stamp written. A photo of the counter code is not enough on its own.
+ */
+function PinSheet({ payload, info, onDone, onCancel }: { payload: string; info: PendingCollect; onDone: (o: CollectOutcome) => void; onCancel: () => void }) {
+  const { t } = useTheme();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+  const adds = info.type === 'points' ? `${info.step} נקודות` : info.step === 1 ? 'חותמת אחת' : `${info.step} חותמות`;
+
+  const submit = async (pin: string) => {
+    setBusy(true);
+    const result = await confirmCollect(payload, pin, 'qr');
+    setBusy(false);
+    if (result.status === 'wrong_pin') {
+      setError(wrongPinMessage(result.attemptsLeft));
+      setResetKey((k) => k + 1);
+    } else onDone(result);
+  };
+
+  return (
+    <Sheet>
+      <Txt kind="title" accessibilityRole="header">מציגים לקופאי/ת</Txt>
+      <Txt kind="lead" size={16} color={t.textMuted}>{info.businessName} · {info.programName}</Txt>
+      <Txt size={16} style={{ marginTop: 6, marginBottom: 16 }}>
+        לאישור {adds} בכרטיס ({info.current} מתוך {info.goal}), הצוות מקליד את הקוד שלו.
+      </Txt>
+      <PinPad onComplete={submit} busy={busy} error={error} resetKey={resetKey} />
+      <Button label="ביטול" variant="quiet" small onPress={onCancel} style={{ alignSelf: 'center', marginTop: 12 }} />
+    </Sheet>
+  );
+}
+
+/** The result of the scan. */
+function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectOutcome; onAgain: () => void; onRetry: () => void; onClose: () => void }) {
+  const { t } = useTheme();
+  const c = content(outcome);
+  return (
+    <Sheet>
       <Txt kind="title" accessibilityRole="header">{c.title}</Txt>
       {c.sub ? <Txt kind="lead" size={16} color={t.textMuted} style={{ marginBottom: 14 }}>{c.sub}</Txt> : null}
       {c.card ? (
@@ -198,7 +260,7 @@ function ResultSheet({ outcome, onAgain, onRetry, onClose }: { outcome: CollectO
         {c.primary === 'again' ? <Button label="סריקה נוספת" onPress={onAgain} /> : null}
         {c.primary === 'done' ? <Button label="סיום" onPress={onClose} /> : <Button label="סיום" variant="quiet" onPress={onClose} />}
       </View>
-    </Animated.View>
+    </Sheet>
   );
 }
 
@@ -238,6 +300,8 @@ function content(o: CollectOutcome): Content {
       return { title: 'הקוד לא מוכר', sub: 'זה לא קוד Perko פעיל. סורקים את הקוד שבקופה של עסק משתתף.', primary: 'again' };
     case 'inactive':
       return { title: 'הקוד לא פעיל', sub: 'הקוד הזה הושבת, או שהעסק לא צובר כרגע. אפשר לשאול את הצוות בקופה.', primary: 'again' };
+    case 'locked':
+      return { title: 'הקוד ננעל להיום', sub: `${o.businessName}. ${lockedMessage()}.`, primary: 'done' };
     case 'rate_limited':
       return { title: 'יותר מדי סריקות', sub: 'נסו שוב בעוד כמה דקות.', primary: 'done' };
     case 'offline':

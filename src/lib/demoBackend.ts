@@ -1,14 +1,16 @@
 // Demo mode: runs the whole app on this device with the sample businesses, no Supabase project needed.
 // It uses the same loyalty rules as the server (decideCollect, isRateLimited) so the flows behave the same,
-// but nothing here is secure: codes are not signature-checked and any 6-digit SMS code is accepted.
+// but nothing here is secure: codes are not signature-checked, any 6-digit SMS code is accepted and the staff PIN
+// of every sample business is DEMO_PIN.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { decideCollect, isRateLimited, RATE_LIMITS } from '../../supabase/functions/_shared/loyalty.ts';
-import { issueRedeemCode, parseQrPayload, verifyRedeemCode } from '../../supabase/functions/_shared/token.ts';
+import { decideCollect, isRateLimited, PIN_MAX_FAILURES, RATE_LIMITS } from '../../supabase/functions/_shared/loyalty.ts';
+import { parseQrPayload } from '../../supabase/functions/_shared/token.ts';
 import { AuthError, type AuthListener, type Backend } from './backend';
-import type { Business, Card, CardStatus, Profile, Program, Redemption } from './types';
+import type { Business, Card, CardStatus, CollectResponse, CollectSource, Profile, Program, Redemption } from './types';
 
 const KEY = 'perko.demo.v1';
-const DEMO_SECRET = 'perko-demo-only';
+/** The staff PIN of every sample business in demo mode. */
+export const DEMO_PIN = '1234';
 
 const program = (n: number, p: Omit<Program, 'id' | 'redeemRule' | 'cooldownMinutes'>): Program => ({
   id: `b0000000-0000-4000-8000-00000000000${n}`,
@@ -60,9 +62,11 @@ type State = {
   cards: StoredCard[];
   events: StoredEvent[];
   redemptions: { id: string; reward: string; businessName: string; createdAt: string }[];
+  /** Consecutive wrong PINs per business, today (local day), as on the server. */
+  pinFailures?: Record<string, { day: string; count: number }>;
 };
 
-const empty: State = { profile: null, cards: [], events: [], redemptions: [] };
+const empty: State = { profile: null, cards: [], events: [], redemptions: [], pinFailures: {} };
 const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
 const daysAgo = (d: number, h = 10) => {
   const t = new Date();
@@ -119,6 +123,69 @@ export function createDemoBackend(): Backend {
     return { ...c, business, program: business.program! };
   };
   const delay = () => new Promise((r) => setTimeout(r, 250));
+
+  // The PIN lockout, per business and day: PIN_MAX_FAILURES consecutive wrong PINs lock until midnight.
+  const today = () => new Date().toDateString();
+  const midnight = () => {
+    const t = new Date();
+    t.setHours(24, 0, 0, 0);
+    return t.toISOString();
+  };
+  const failures = (s: State, businessId: string) => {
+    const f = s.pinFailures?.[businessId];
+    return f && f.day === today() ? f.count : 0;
+  };
+  /** Checks a PIN; returns null when it is right, else the answer to send back. */
+  const checkPin = async (s: State, businessId: string, pin: string) => {
+    if (pin === DEMO_PIN) {
+      s.pinFailures = { ...s.pinFailures, [businessId]: { day: today(), count: 0 } };
+      return null;
+    }
+    const count = failures(s, businessId) + 1;
+    s.pinFailures = { ...s.pinFailures, [businessId]: { day: today(), count } };
+    await save();
+    return count >= PIN_MAX_FAILURES ? { status: 'locked' as const, until: midnight() } : { status: 'wrong_pin' as const, attemptsLeft: PIN_MAX_FAILURES - count };
+  };
+
+  /** collect with pin === null is the 'check' step: nothing is written. */
+  const collectDemo = async (payload: string, _source: CollectSource, pin: string | null): Promise<CollectResponse> => {
+    await delay();
+    const s = await signedIn();
+    const parsed = parseQrPayload(payload);
+    const business = parsed && qrToBusiness(parsed.qrId);
+    if (!business?.program) return { status: 'invalid' };
+    const p = business.program;
+    if (failures(s, business.id) >= PIN_MAX_FAILURES) return { status: 'locked', until: midnight(), businessName: business.name };
+    const now = new Date();
+    const longest = Math.max(...RATE_LIMITS.map((l) => l.windowMinutes));
+    const recent = s.events.filter((e) => now.getTime() - new Date(e.createdAt).getTime() < longest * 60_000).map((e) => e.createdAt);
+    if (isRateLimited(recent, now)) return { status: 'rate_limited' };
+
+    const existing = s.cards.find((c) => c.programId === p.id && c.status !== 'redeemed');
+    const info = {
+      businessId: business.id, businessName: business.name, programName: p.name,
+      type: p.type, goal: p.goal, current: existing?.current ?? 0, reward: p.reward,
+    };
+    // Cooldown per user and business, as on the server.
+    const cardIds = new Set(s.cards.filter((c) => c.programId === p.id).map((c) => c.id));
+    const lastCollectedAt = s.events.filter((e) => cardIds.has(e.cardId)).map((e) => e.createdAt).sort().pop() ?? null;
+    const d = decideCollect({ ...p }, { current: existing?.current ?? 0, status: existing?.status ?? 'active', lastCollectedAt }, now);
+    if (d.kind === 'cooldown') return { status: 'cooldown', retryAt: d.retryAt, remainingMinutes: d.remainingMinutes, businessName: business.name };
+    if (d.kind !== 'apply') return { status: 'complete', ...info, cardId: existing!.id };
+    if (pin === null) return { status: 'pin_required', ...info, step: p.step, cardId: existing?.id ?? null };
+
+    const refused = await checkPin(s, business.id, pin);
+    if (refused) return { ...refused, businessName: business.name };
+    let card = existing;
+    if (!card) {
+      card = { id: uid(), programId: p.id, current: 0, status: 'active', createdAt: now.toISOString(), lastCollectedAt: null, completedAt: null };
+      s.cards.push(card);
+    }
+    Object.assign(card, { current: d.current, status: d.status, lastCollectedAt: now.toISOString(), completedAt: d.completed ? now.toISOString() : null });
+    s.events.push({ id: uid(), cardId: card.id, amount: d.added, createdAt: now.toISOString() });
+    await save();
+    return { status: 'ok', ...info, cardId: card.id, current: d.current, added: d.added, completed: d.completed };
+  };
 
   return {
     mode: 'demo',
@@ -194,55 +261,23 @@ export function createDemoBackend(): Backend {
       await save();
     },
 
-    async collect(payload) {
-      await delay();
-      const s = await signedIn();
-      const parsed = parseQrPayload(payload);
-      const business = parsed && qrToBusiness(parsed.qrId);
-      if (!business?.program) return { status: 'invalid' };
-      const p = business.program;
-      const now = new Date();
-      const longest = Math.max(...RATE_LIMITS.map((l) => l.windowMinutes));
-      const recent = s.events.filter((e) => now.getTime() - new Date(e.createdAt).getTime() < longest * 60_000).map((e) => e.createdAt);
-      if (isRateLimited(recent, now)) return { status: 'rate_limited' };
-
-      let card = s.cards.find((c) => c.programId === p.id && c.status !== 'redeemed');
-      if (!card) {
-        card = { id: uid(), programId: p.id, current: 0, status: 'active', createdAt: now.toISOString(), lastCollectedAt: null, completedAt: null };
-        s.cards.push(card);
-      }
-      const info = {
-        cardId: card.id, businessId: business.id, businessName: business.name, programName: p.name,
-        type: p.type, goal: p.goal, current: card.current, reward: p.reward,
-      };
-      // Cooldown per user and business, as on the server.
-      const cardIds = new Set(s.cards.filter((c) => c.programId === p.id).map((c) => c.id));
-      const lastCollectedAt = s.events.filter((e) => cardIds.has(e.cardId)).map((e) => e.createdAt).sort().pop() ?? null;
-      const d = decideCollect({ ...p }, { ...card, lastCollectedAt }, now);
-      if (d.kind === 'cooldown') return { status: 'cooldown', retryAt: d.retryAt, remainingMinutes: d.remainingMinutes, businessName: business.name };
-      if (d.kind !== 'apply') return { status: 'complete', ...info };
-      Object.assign(card, { current: d.current, status: d.status, lastCollectedAt: now.toISOString(), completedAt: d.completed ? now.toISOString() : null });
-      s.events.push({ id: uid(), cardId: card.id, amount: d.added, createdAt: now.toISOString() });
-      await save();
-      return { status: 'ok', ...info, current: d.current, added: d.added, completed: d.completed };
+    checkCollect(payload, source) {
+      return collectDemo(payload, source, null);
+    },
+    collect(payload, source, pin) {
+      return collectDemo(payload, source, pin);
     },
 
-    async redeemCode(cardId) {
-      const s = await signedIn();
-      const c = s.cards.find((x) => x.id === cardId);
-      if (!c) return { status: 'not_found' };
-      if (c.status !== 'complete') return { status: 'not_ready' };
-      const { code, expiresAt } = await issueRedeemCode(DEMO_SECRET, cardId, new Date());
-      return { status: 'code', code, expiresAt };
-    },
-    async confirmRedeem(cardId, code) {
+    async confirmRedeem(cardId, pin) {
       await delay();
       const s = await signedIn();
       const c = s.cards.find((x) => x.id === cardId);
       if (!c) return { status: 'not_found' };
       if (c.status !== 'complete') return { status: 'not_ready' };
-      if (!(await verifyRedeemCode(DEMO_SECRET, cardId, code, new Date()))) return { status: 'expired' };
       const business = programById(c.programId);
+      if (failures(s, business.id) >= PIN_MAX_FAILURES) return { status: 'locked', until: midnight() };
+      const refused = await checkPin(s, business.id, pin);
+      if (refused) return refused;
       const now = new Date().toISOString();
       c.status = 'redeemed';
       s.redemptions.push({ id: uid(), reward: business.program!.reward, businessName: business.name, createdAt: now });

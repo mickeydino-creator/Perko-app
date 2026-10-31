@@ -24,9 +24,12 @@ export interface Backend {
 
   // Writing. Stamps are never written by the client: collect and redeem go to the server functions.
   addToWallet(programId: string): Promise<void>;
-  collect(payload: string, source: CollectSource): Promise<CollectResponse>;
-  redeemCode(cardId: string): Promise<RedeemResponse>;
-  confirmRedeem(cardId: string, code: string): Promise<RedeemResponse>;
+  /** Can the customer collect now? No PIN, nothing written: answers cooldown and full cards before the PIN pad. */
+  checkCollect(payload: string, source: CollectSource): Promise<CollectResponse>;
+  /** The staff member typed their PIN on the customer's phone: the stamp is written if it is right. */
+  collect(payload: string, source: CollectSource, pin: string): Promise<CollectResponse>;
+  /** The staff member confirms the reward with their PIN. */
+  confirmRedeem(cardId: string, pin: string): Promise<RedeemResponse>;
 }
 
 /** Thrown when a request could not reach the server. */

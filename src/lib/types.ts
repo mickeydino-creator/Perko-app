@@ -5,6 +5,7 @@ export type {
   CollectResponse,
   CollectSource,
   CollectedCard,
+  PendingCollect,
   RedeemResponse,
 } from '../../supabase/functions/_shared/api-types.ts';
 
@@ -48,6 +49,7 @@ export type Card = {
   lastCollectedAt: string | null;
   completedAt: string | null;
   business: Business;
+  /** The program with this card's own rules: type, goal, step, reward and rule texts as when the card was opened. */
   program: Program;
 };
 

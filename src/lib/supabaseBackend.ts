@@ -44,8 +44,18 @@ const toBusiness = (b: any, program: Program | null): Business => ({
   program,
 });
 
+// A card keeps the rules it was opened with (the cards snapshot): card.program carries the card's own type,
+// goal, step, reward and rule texts, so a later change to the program never moves a card's goalposts.
 const toCard = (c: any): Card => {
-  const program = toProgram(c.program);
+  const program: Program = {
+    ...toProgram(c.program),
+    type: c.type,
+    goal: c.goal,
+    step: c.step,
+    reward: c.reward,
+    rule: c.rule,
+    redeemRule: c.redeem_rule,
+  };
   return {
     id: c.id,
     current: c.current,
@@ -54,7 +64,7 @@ const toCard = (c: any): Card => {
     lastCollectedAt: c.last_collected_at,
     completedAt: c.completed_at,
     program,
-    business: toBusiness(c.program.business, program),
+    business: toBusiness(c.program.business, toProgram(c.program)),
   };
 };
 
@@ -180,14 +190,14 @@ export function createSupabaseBackend(): Backend {
       // 23505: the card is already in the wallet. That is fine.
       if (res.error && res.error.code !== '23505') check(res);
     },
-    collect(payload, source) {
-      return invoke<CollectResponse>('collect', { payload, source });
+    checkCollect(payload, source) {
+      return invoke<CollectResponse>('collect', { payload, source, action: 'check' });
     },
-    redeemCode(cardId) {
-      return invoke<RedeemResponse>('redeem', { action: 'code', cardId });
+    collect(payload, source, pin) {
+      return invoke<CollectResponse>('collect', { payload, source, action: 'collect', pin });
     },
-    confirmRedeem(cardId, code) {
-      return invoke<RedeemResponse>('redeem', { action: 'confirm', cardId, code });
+    confirmRedeem(cardId, pin) {
+      return invoke<RedeemResponse>('redeem', { action: 'confirm', cardId, pin });
     },
   };
 }
