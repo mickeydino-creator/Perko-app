@@ -10,7 +10,11 @@ const shared: Record<string, string> = {
   token: `${root}/_shared/token.ts`,
   'api-types': `${root}/_shared/api-types.ts`,
   server: `${root}/_shared/server.ts`,
+  pins: `${root}/_shared/pins.ts`,
 };
+// What each shared file needs from the others. Order matters: a file comes after what it uses.
+const order = ['loyalty', 'token', 'api-types', 'server', 'pins'];
+const needs: Record<string, string[]> = { 'api-types': ['loyalty'], pins: ['loyalty', 'token', 'server'] };
 
 /** Drop import lines and `export` keywords: everything ends up in one module. */
 function inline(path: string): string {
@@ -23,11 +27,11 @@ function inline(path: string): string {
 }
 
 mkdirSync(outDir, { recursive: true });
-for (const fn of ['collect', 'redeem', 'delete-account']) {
+for (const fn of ['collect', 'redeem', 'delete-account', 'business-admin']) {
   const src = readFileSync(`${root}/${fn}/index.ts`, 'utf8');
-  const used = [...src.matchAll(/from '\.\.\/_shared\/([\w-]+)\.ts'/g)].map((m) => m[1]);
-  // api-types needs ProgramType from loyalty; server is always needed for the npm import.
-  const parts = ['loyalty', 'token', 'api-types', 'server'].filter((p) => used.includes(p) || (p === 'loyalty' && used.includes('api-types')));
+  const used = new Set([...src.matchAll(/from '\.\.\/_shared\/([\w-]+)\.ts'/g)].map((m) => m[1]));
+  for (const p of [...used]) for (const n of needs[p] ?? []) used.add(n);
+  const parts = order.filter((p) => used.has(p));
   const body = src
     .split('\n')
     .filter((l) => !/^import\s.*_shared/.test(l))

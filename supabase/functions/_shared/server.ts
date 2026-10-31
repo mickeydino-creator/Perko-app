@@ -42,3 +42,19 @@ export function secret(name: string): string {
   if (!v) throw new Error(`missing secret ${name}`);
   return v;
 }
+
+/**
+ * The caller of an owner action: a signed-in user, or the pilot admin script, which sends the service role key
+ * itself (scripts/admin.ts pins:set, for businesses that have no owner yet).
+ */
+export async function requireCaller(req: Request, db: SupabaseClient): Promise<{ service: true } | { service: false; id: string } | null> {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (token && serviceKey && token.length === serviceKey.length) {
+    let diff = 0;
+    for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ serviceKey.charCodeAt(i);
+    if (diff === 0) return { service: true };
+  }
+  const user = await requireUser(req, db);
+  return user ? { service: false, id: user.id } : null;
+}

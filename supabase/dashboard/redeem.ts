@@ -130,6 +130,12 @@ function normalizeIsraeliPhone(input: string): string | null {
   return '+972' + digits.slice(1);
 }
 
+/** Trim and lower-case an email address. Returns null when it does not look like one. */
+function normalizeEmail(input: string): string | null {
+  const v = input.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) && v.length <= 254 ? v : null;
+}
+
 /** Show an E.164 Israeli number the local way: 050-123-4567. */
 function formatIsraeliPhone(e164: string): string {
   const local = e164.startsWith('+972') ? '0' + e164.slice(4) : e164;
@@ -137,16 +143,28 @@ function formatIsraeliPhone(e164: string): string {
   return `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6)}`;
 }
 
+/** Wrong staff PINs allowed per customer, business and day (consecutive). Same as pin_max_failures() in SQL. */
+const PIN_MAX_FAILURES = 3;
+
+/** "נשארו 2 ניסיונות" under a wrong PIN. */
+function wrongPinMessage(attemptsLeft: number): string {
+  if (attemptsLeft <= 0) return 'הקוד שגוי';
+  if (attemptsLeft === 1) return 'הקוד שגוי. נשאר ניסיון אחד';
+  return `הקוד שגוי. נשארו ${attemptsLeft} ניסיונות`;
+}
+
+/** Shown when the customer is locked out at a business until midnight. */
+function lockedMessage(): string {
+  return 'יותר מדי קודים שגויים. אפשר לנסות שוב מחר';
+}
+
 // ---- _shared/token.ts
-// Signed counter QR tokens and short-lived redemption codes.
+// Signed counter QR tokens and staff PIN hashes.
 // Uses only WebCrypto, available in Deno (Edge Functions) and Node 20+ (admin script, tests).
 // The secrets never reach the app: the app only scans and forwards the payload.
 
 /** Scheme printed in the counter QR. Opening it with any camera app deep-links into Perko. */
 const QR_PREFIX = 'perko://c/';
-
-/** A redemption code is valid for one window and the one before it (so a code read at second 29 still works). */
-const REDEEM_WINDOW_SECONDS = 30;
 
 const enc = new TextEncoder();
 
@@ -206,32 +224,46 @@ async function verifyQrPayload(payload: string, secrets: Record<number, string>)
   return safeEqual(expected, parsed.signature) ? parsed : null;
 }
 
-function redeemWindow(now: Date): number {
-  return Math.floor(now.getTime() / 1000 / REDEEM_WINDOW_SECONDS);
+/** Staff PINs are 4 digits, typed by a staff member on the customer's phone. */
+const PIN_LENGTH = 4;
+
+function isPinFormat(pin: unknown): pin is string {
+  return typeof pin === 'string' && /^\d{4}$/.test(pin);
 }
 
-async function codeFor(secret: string, cardId: string, window: number): Promise<string> {
-  const h = await hmac(secret, `perko.redeem.${cardId}.${window}`);
-  // Dynamic truncation as in HOTP (RFC 4226), 6 digits.
-  const o = h[h.length - 1] & 0x0f;
-  const n = ((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
-  return String(n % 1_000_000).padStart(6, '0');
+function hex(bytes: Uint8Array): string {
+  let s = '';
+  for (const b of bytes) s += b.toString(16).padStart(2, '0');
+  return s;
 }
 
-/** The code the customer shows at the counter right now, and when it stops being shown. */
-async function issueRedeemCode(secret: string, cardId: string, now: Date): Promise<{ code: string; expiresAt: string }> {
-  const w = redeemWindow(now);
-  return { code: await codeFor(secret, cardId, w), expiresAt: new Date((w + 1) * REDEEM_WINDOW_SECONDS * 1000).toISOString() };
+/**
+ * What the database stores for a staff PIN: HMAC-SHA256 keyed with PIN_SECRET over the business id and the PIN.
+ * Without the secret a leaked table cannot be brute-forced (10,000 PINs would take a moment with a plain hash).
+ * The business id makes the same PIN in two businesses look unrelated.
+ */
+async function hashPin(secret: string, businessId: string, pin: string): Promise<string> {
+  if (!isPinFormat(pin)) throw new Error('a PIN is 4 digits');
+  return hex(await hmac(secret, `perko.pin.${businessId.toLowerCase()}.${pin}`));
 }
 
-/** Accepts the current code and the previous one only. A screenshot is stale within a minute. */
-async function verifyRedeemCode(secret: string, cardId: string, code: string, now: Date): Promise<boolean> {
-  if (!/^\d{6}$/.test(code)) return false;
-  const w = redeemWindow(now);
-  for (const win of [w, w - 1]) {
-    if (safeEqual(await codeFor(secret, cardId, win), code)) return true;
+/** PINs a guesser tries first: one digit repeated (0000) and runs (1234, 9876). */
+function isWeakPin(pin: string): boolean {
+  if (/^(\d)\1{3}$/.test(pin)) return true;
+  const d = [...pin].map(Number);
+  const steps = d.slice(1).map((x, i) => x - d[i]);
+  return steps.every((s) => s === 1) || steps.every((s) => s === -1);
+}
+
+/** A random PIN, never a weak one. Uses WebCrypto, so it is unpredictable. */
+function randomPin(): string {
+  for (;;) {
+    const n = crypto.getRandomValues(new Uint32Array(1))[0];
+    // 4,294,960,000 is a multiple of 10,000: dropping the top few values keeps every PIN equally likely.
+    if (n >= 4_294_960_000) continue;
+    const pin = String(n % 10_000).padStart(PIN_LENGTH, '0');
+    if (!isWeakPin(pin)) return pin;
   }
-  return false;
 }
 
 // ---- _shared/api-types.ts
@@ -241,7 +273,12 @@ async function verifyRedeemCode(secret: string, cardId: string, code: string, no
 /** Where a collection came from. 'nfc' is reserved: v1 only sends 'qr'. */
 type CollectSource = 'qr' | 'nfc';
 
-type CollectRequest = { payload: string; source: CollectSource };
+/**
+ * Collecting takes two calls. 'check' (no PIN) runs every test that does not need the staff member: the code,
+ * the lockout, the rate limit and the cooldown, so the customer learns "come back later" before anyone types a
+ * PIN. 'collect' repeats them with the 4-digit staff PIN and writes the stamp.
+ */
+type CollectRequest = { payload: string; source: CollectSource; action: 'check' | 'collect'; pin?: string };
 
 type CollectedCard = {
   cardId: string;
@@ -254,24 +291,50 @@ type CollectedCard = {
   reward: string;
 };
 
+/** What the customer will get, shown above the PIN pad. The card may not exist yet (first scan). */
+type PendingCollect = Omit<CollectedCard, 'cardId'> & { cardId: string | null; step: number };
+
 type CollectResponse =
   | ({ status: 'ok'; added: number; completed: boolean } & CollectedCard)
   | { status: 'cooldown'; retryAt: string; remainingMinutes: number; businessName: string }
   | ({ status: 'complete' } & CollectedCard) // the card is already full: redeem first
+  | ({ status: 'pin_required' } & PendingCollect) // check passed: show the PIN pad to the staff member
+  | { status: 'wrong_pin'; attemptsLeft: number; businessName: string }
+  | { status: 'locked'; until: string; businessName: string } // too many wrong PINs today at this business
   | { status: 'invalid' } // not a Perko code, bad signature, unknown code
   | { status: 'inactive' } // revoked code, or the business or program is paused
   | { status: 'rate_limited' };
 
-type RedeemRequest =
-  | { action: 'code'; cardId: string }
-  | { action: 'confirm'; cardId: string; code: string };
+/** A reward is used when a staff member types their PIN on the customer's phone. */
+type RedeemRequest = { action: 'confirm'; cardId: string; pin: string };
 
 type RedeemResponse =
-  | { status: 'code'; code: string; expiresAt: string }
   | { status: 'redeemed'; newCardId: string; reward: string }
-  | { status: 'expired' } // the code shown is no longer valid
+  | { status: 'wrong_pin'; attemptsLeft: number }
+  | { status: 'locked'; until: string } // too many wrong PINs today at this business
   | { status: 'not_ready' } // the card is not complete (or already redeemed)
   | { status: 'not_found' };
+
+// business-admin: what the owner dashboard (and scripts/admin.ts with the service role key) can do.
+type PinMode = 'shared' | 'per_staff';
+
+type BusinessAdminRequest =
+  | { action: 'pin_mode'; businessId: string; mode: PinMode } // switching to shared creates the team PIN
+  | { action: 'team_pin'; businessId: string } // create or replace the team PIN (shared mode)
+  | { action: 'staff_add'; businessId: string; name: string } // per_staff mode
+  | { action: 'staff_remove'; businessId: string; staffPinId: string }
+  | { action: 'pin_reset'; businessId: string; staffPinId: string }
+  | { action: 'qr_list'; businessId: string }
+  | { action: 'qr_create'; businessId: string; label?: string };
+
+type CounterCode = { id: string; label: string | null; payload: string; createdAt: string };
+
+type BusinessAdminResponse =
+  | { status: 'ok' }
+  | { status: 'pin'; staffPinId: string; name: string; pin: string } // the PIN is shown once, never stored in clear
+  | { status: 'qr'; businessName: string; codes: CounterCode[] }
+  | { status: 'forbidden' }
+  | { status: 'invalid'; message: string };
 
 // ---- _shared/server.ts
 // Helpers for the Edge Functions (Deno). Not imported by the app.
@@ -318,11 +381,85 @@ function secret(name: string): string {
   return v;
 }
 
+/**
+ * The caller of an owner action: a signed-in user, or the pilot admin script, which sends the service role key
+ * itself (scripts/admin.ts pins:set, for businesses that have no owner yet).
+ */
+async function requireCaller(req: Request, db: SupabaseClient): Promise<{ service: true } | { service: false; id: string } | null> {
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (token && serviceKey && token.length === serviceKey.length) {
+    let diff = 0;
+    for (let i = 0; i < token.length; i++) diff |= token.charCodeAt(i) ^ serviceKey.charCodeAt(i);
+    if (diff === 0) return { service: true };
+  }
+  const user = await requireUser(req, db);
+  return user ? { service: false, id: user.id } : null;
+}
+
+// ---- _shared/pins.ts
+// Staff PINs on the server (Deno): checking a PIN typed at the counter and issuing new ones.
+// The PIN itself is never stored, only hashPin() of it, keyed with PIN_SECRET.
+
+type PinCheck =
+  | { kind: 'ok'; staffPinId: string }
+  | { kind: 'wrong'; attemptsLeft: number }
+  | { kind: 'locked'; until: string };
+
+/** Midnight in Israel when the customer is locked out at this business, else null. */
+async function lockedUntil(db: SupabaseClient, userId: string, businessId: string): Promise<string | null> {
+  const { data, error } = await db.rpc('pin_locked_until', { p_user: userId, p_business: businessId });
+  if (error) throw new Error(`pin_locked_until: ${error.message}`);
+  return (data as string | null) ?? null;
+}
+
+/**
+ * Checks a PIN typed at the counter against the business's active PINs. A wrong PIN is logged; the last
+ * allowed one locks the customer at this business until midnight and alerts the owner (register_pin_failure).
+ * Call lockedUntil() first: a locked customer must not get another try.
+ */
+async function checkStaffPin(
+  db: SupabaseClient, secret: string, userId: string, businessId: string, pin: unknown, context: 'collect' | 'redeem',
+): Promise<PinCheck> {
+  if (isPinFormat(pin)) {
+    const { data } = await db
+      .from('staff_pins')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('pin_hash', await hashPin(secret, businessId, pin))
+      .eq('active', true)
+      .maybeSingle();
+    if (data) return { kind: 'ok', staffPinId: data.id };
+  }
+  const { data: failures, error } = await db.rpc('register_pin_failure', { p_user: userId, p_business: businessId, p_context: context });
+  if (error) throw new Error(`register_pin_failure: ${error.message}`);
+  const n = Number(failures);
+  if (n >= PIN_MAX_FAILURES) {
+    return { kind: 'locked', until: (await lockedUntil(db, userId, businessId)) ?? new Date().toISOString() };
+  }
+  return { kind: 'wrong', attemptsLeft: PIN_MAX_FAILURES - n };
+}
+
+/** Creates an active PIN for a staff member (or "צוות") and returns it. It is shown once and never again. */
+async function issuePin(db: SupabaseClient, secret: string, businessId: string, name: string): Promise<{ id: string; pin: string }> {
+  // A PIN must be unique among the business's active PINs; with at most a few dozen staff a clash is rare.
+  for (let i = 0; i < 25; i++) {
+    const pin = randomPin();
+    const { data, error } = await db
+      .from('staff_pins')
+      .insert({ business_id: businessId, name, pin_hash: await hashPin(secret, businessId, pin) })
+      .select('id')
+      .single();
+    if (data) return { id: data.id, pin };
+    if (error?.code !== '23505') throw new Error(`staff_pins: ${error?.message}`);
+  }
+  throw new Error('could not find a free PIN');
+}
+
 // ---- redeem/index.ts
-// POST /functions/v1/redeem
-//   { action: 'code', cardId }            -> the 6-digit code to show at the counter (changes every 30 s)
-//   { action: 'confirm', cardId, code }   -> marks the reward used and opens a new card
-// The code is derived from REDEEM_SECRET, so it cannot be computed on the device or reused from a screenshot.
+// POST /functions/v1/redeem  { action: 'confirm', cardId, pin }
+// Marks the reward used and opens a new card. A staff member confirms by typing their 4-digit PIN on the
+// customer's phone; the PIN is checked here, a wrong one counts towards the customer's lockout at the business.
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -338,35 +475,32 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'body' }, 400);
   }
-  if (typeof body.cardId !== 'string') return json({ error: 'body' }, 400);
+  if (body.action !== 'confirm' || typeof body.cardId !== 'string') return json({ error: 'body' }, 400);
 
+  // The card keeps the goal and reward it was opened with.
   const { data: card } = await db
     .from('cards')
-    .select('id, user_id, current, status, version, program:programs(goal, reward)')
+    .select('id, user_id, current, status, version, goal, reward, program:programs(business_id)')
     .eq('id', body.cardId)
     .eq('user_id', user.id)
     .maybeSingle();
   if (!card) return json({ status: 'not_found' } satisfies RedeemResponse);
-  const program = card.program as unknown as { goal: number; reward: string };
-  if (card.status !== 'complete' || !canRedeem(card, program)) return json({ status: 'not_ready' } satisfies RedeemResponse);
+  if (card.status !== 'complete' || !canRedeem(card, card)) return json({ status: 'not_ready' } satisfies RedeemResponse);
+  const businessId = (card.program as unknown as { business_id: string }).business_id;
 
-  const key = secret('REDEEM_SECRET');
-  const now = new Date();
+  const until = await lockedUntil(db, user.id, businessId);
+  if (until) return json({ status: 'locked', until } satisfies RedeemResponse);
 
-  if (body.action === 'code') {
-    const { code, expiresAt } = await issueRedeemCode(key, card.id, now);
-    return json({ status: 'code', code, expiresAt } satisfies RedeemResponse);
-  }
+  const pin = await checkStaffPin(db, secret('PIN_SECRET'), user.id, businessId, body.pin, 'redeem');
+  if (pin.kind === 'locked') return json({ status: 'locked', until: pin.until } satisfies RedeemResponse);
+  if (pin.kind === 'wrong') return json({ status: 'wrong_pin', attemptsLeft: pin.attemptsLeft } satisfies RedeemResponse);
 
-  if (body.action === 'confirm') {
-    if (!(await verifyRedeemCode(key, card.id, String(body.code ?? ''), now))) {
-      return json({ status: 'expired' } satisfies RedeemResponse);
-    }
-    const { data: newCardId, error } = await db.rpc('apply_redeem', { p_card_id: card.id, p_expected_version: card.version });
-    if (error) return json({ error: 'write' }, 500);
-    if (!newCardId) return json({ status: 'not_ready' } satisfies RedeemResponse);
-    return json({ status: 'redeemed', newCardId, reward: program.reward } satisfies RedeemResponse);
-  }
-
-  return json({ error: 'action' }, 400);
+  const { data: newCardId, error } = await db.rpc('apply_redeem', {
+    p_card_id: card.id,
+    p_expected_version: card.version,
+    p_staff_pin_id: pin.staffPinId,
+  });
+  if (error) return json({ error: 'write' }, 500);
+  if (!newCardId) return json({ status: 'not_ready' } satisfies RedeemResponse);
+  return json({ status: 'redeemed', newCardId, reward: card.reward } satisfies RedeemResponse);
 });

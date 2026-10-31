@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  issueRedeemCode,
+  hashPin,
+  isPinFormat,
+  isWeakPin,
   parseQrPayload,
-  REDEEM_WINDOW_SECONDS,
+  randomPin,
   signQrPayload,
   verifyQrPayload,
-  verifyRedeemCode,
 } from '../supabase/functions/_shared/token.ts';
 
 const qrId = '3f1c2a9e-7b4d-4e21-9a55-0c6d8e2f1b37';
@@ -38,24 +39,32 @@ test('rotation: a code signed with a removed key version is rejected', async () 
   assert.equal(await verifyQrPayload(v1, { 1: secrets[2] }), null);
 });
 
-test('redeem code is 6 digits and accepted in its window and the next one only', async () => {
-  const secret = 'redeem-secret';
-  const card = 'card-1';
-  const t0 = new Date('2026-10-25T10:00:05Z');
-  const { code, expiresAt } = await issueRedeemCode(secret, card, t0);
-  assert.match(code, /^\d{6}$/);
-  assert.equal(expiresAt, '2026-10-25T10:00:30.000Z');
-  assert.equal(await verifyRedeemCode(secret, card, code, t0), true);
-  const later = (s: number) => new Date(t0.getTime() + s * 1000);
-  assert.equal(await verifyRedeemCode(secret, card, code, later(REDEEM_WINDOW_SECONDS)), true);
-  assert.equal(await verifyRedeemCode(secret, card, code, later(REDEEM_WINDOW_SECONDS * 2)), false);
-  assert.equal(await verifyRedeemCode(secret, 'card-2', code, t0), false);
-  assert.equal(await verifyRedeemCode(secret, card, 'abc', t0), false);
+test('a PIN hash is keyed, per business and deterministic', async () => {
+  const business = 'a0000000-0000-4000-8000-000000000001';
+  const h = await hashPin('pin-secret', business, '4821');
+  assert.match(h, /^[0-9a-f]{64}$/);
+  assert.equal(await hashPin('pin-secret', business, '4821'), h, 'same input, same hash: the database looks it up');
+  assert.equal(await hashPin('pin-secret', business.toUpperCase(), '4821'), h, 'the id is case-insensitive');
+  assert.notEqual(await hashPin('pin-secret', business, '4822'), h);
+  assert.notEqual(await hashPin('other-secret', business, '4821'), h, 'without the secret the hash cannot be rebuilt');
+  assert.notEqual(await hashPin('pin-secret', 'a0000000-0000-4000-8000-000000000002', '4821'), h, 'same PIN, other business');
+  await assert.rejects(hashPin('pin-secret', business, '123'));
 });
 
-test('the code changes every window', async () => {
-  const a = await issueRedeemCode('s', 'card-1', new Date('2026-10-25T10:00:00Z'));
-  const b = await issueRedeemCode('s', 'card-1', new Date('2026-10-25T10:00:30Z'));
-  const c = await issueRedeemCode('s', 'card-1', new Date('2026-10-25T10:01:00Z'));
-  assert.ok(a.code !== b.code || b.code !== c.code);
+test('PIN format: exactly 4 digits', () => {
+  for (const ok of ['0000', '4821', '9999']) assert.equal(isPinFormat(ok), true, ok);
+  for (const bad of ['123', '12345', '12a4', ' 1234', '', 1234, null]) assert.equal(isPinFormat(bad), false, String(bad));
+});
+
+test('weak PINs are recognised and never generated', () => {
+  for (const w of ['0000', '7777', '1234', '6789', '9876', '3210']) assert.equal(isWeakPin(w), true, w);
+  for (const ok of ['1235', '4821', '1212', '0918']) assert.equal(isWeakPin(ok), false, ok);
+  const seen = new Set<string>();
+  for (let i = 0; i < 2000; i++) {
+    const p = randomPin();
+    assert.equal(isPinFormat(p), true);
+    assert.equal(isWeakPin(p), false);
+    seen.add(p);
+  }
+  assert.ok(seen.size > 1500, 'random PINs are spread out');
 });

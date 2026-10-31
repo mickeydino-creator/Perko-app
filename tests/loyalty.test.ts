@@ -7,6 +7,9 @@ import {
   durationLabel,
   formatIsraeliPhone,
   isRateLimited,
+  lockedMessage,
+  PIN_MAX_FAILURES,
+  wrongPinMessage,
   normalizeEmail,
   normalizeIsraeliPhone,
   progress,
@@ -123,4 +126,12 @@ test('Israeli mobile numbers', () => {
   assert.equal(normalizeIsraeliPhone('02-6251234'), null);
   assert.equal(normalizeIsraeliPhone('05012'), null);
   assert.equal(formatIsraeliPhone('+972501234567'), '050-123-4567');
+});
+
+test('wrong PIN copy counts down the attempts left', () => {
+  assert.equal(PIN_MAX_FAILURES, 3);
+  assert.equal(wrongPinMessage(2), 'הקוד שגוי. נשארו 2 ניסיונות');
+  assert.equal(wrongPinMessage(1), 'הקוד שגוי. נשאר ניסיון אחד');
+  assert.equal(wrongPinMessage(0), 'הקוד שגוי');
+  assert.match(lockedMessage(), /מחר/);
 });

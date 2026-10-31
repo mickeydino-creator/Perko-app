@@ -136,3 +136,18 @@ export function formatIsraeliPhone(e164: string): string {
   if (!/^05\d{8}$/.test(local)) return e164;
   return `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6)}`;
 }
+
+/** Wrong staff PINs allowed per customer, business and day (consecutive). Same as pin_max_failures() in SQL. */
+export const PIN_MAX_FAILURES = 3;
+
+/** "נשארו 2 ניסיונות" under a wrong PIN. */
+export function wrongPinMessage(attemptsLeft: number): string {
+  if (attemptsLeft <= 0) return 'הקוד שגוי';
+  if (attemptsLeft === 1) return 'הקוד שגוי. נשאר ניסיון אחד';
+  return `הקוד שגוי. נשארו ${attemptsLeft} ניסיונות`;
+}
+
+/** Shown when the customer is locked out at a business until midnight. */
+export function lockedMessage(): string {
+  return 'יותר מדי קודים שגויים. אפשר לנסות שוב מחר';
+}

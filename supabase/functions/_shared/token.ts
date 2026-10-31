@@ -1,12 +1,9 @@
-// Signed counter QR tokens and short-lived redemption codes.
+// Signed counter QR tokens and staff PIN hashes.
 // Uses only WebCrypto, available in Deno (Edge Functions) and Node 20+ (admin script, tests).
 // The secrets never reach the app: the app only scans and forwards the payload.
 
 /** Scheme printed in the counter QR. Opening it with any camera app deep-links into Perko. */
 export const QR_PREFIX = 'perko://c/';
-
-/** A redemption code is valid for one window and the one before it (so a code read at second 29 still works). */
-export const REDEEM_WINDOW_SECONDS = 30;
 
 const enc = new TextEncoder();
 
@@ -29,7 +26,7 @@ export function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function qrSignature(secret: string, version: number, qrId: string): Promise<string> {
   // 16 bytes of the HMAC (128 bits) keep the printed code small and are plenty against guessing.
@@ -66,30 +63,44 @@ export async function verifyQrPayload(payload: string, secrets: Record<number, s
   return safeEqual(expected, parsed.signature) ? parsed : null;
 }
 
-export function redeemWindow(now: Date): number {
-  return Math.floor(now.getTime() / 1000 / REDEEM_WINDOW_SECONDS);
+/** Staff PINs are 4 digits, typed by a staff member on the customer's phone. */
+export const PIN_LENGTH = 4;
+
+export function isPinFormat(pin: unknown): pin is string {
+  return typeof pin === 'string' && /^\d{4}$/.test(pin);
 }
 
-async function codeFor(secret: string, cardId: string, window: number): Promise<string> {
-  const h = await hmac(secret, `perko.redeem.${cardId}.${window}`);
-  // Dynamic truncation as in HOTP (RFC 4226), 6 digits.
-  const o = h[h.length - 1] & 0x0f;
-  const n = ((h[o] & 0x7f) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3];
-  return String(n % 1_000_000).padStart(6, '0');
+function hex(bytes: Uint8Array): string {
+  let s = '';
+  for (const b of bytes) s += b.toString(16).padStart(2, '0');
+  return s;
 }
 
-/** The code the customer shows at the counter right now, and when it stops being shown. */
-export async function issueRedeemCode(secret: string, cardId: string, now: Date): Promise<{ code: string; expiresAt: string }> {
-  const w = redeemWindow(now);
-  return { code: await codeFor(secret, cardId, w), expiresAt: new Date((w + 1) * REDEEM_WINDOW_SECONDS * 1000).toISOString() };
+/**
+ * What the database stores for a staff PIN: HMAC-SHA256 keyed with PIN_SECRET over the business id and the PIN.
+ * Without the secret a leaked table cannot be brute-forced (10,000 PINs would take a moment with a plain hash).
+ * The business id makes the same PIN in two businesses look unrelated.
+ */
+export async function hashPin(secret: string, businessId: string, pin: string): Promise<string> {
+  if (!isPinFormat(pin)) throw new Error('a PIN is 4 digits');
+  return hex(await hmac(secret, `perko.pin.${businessId.toLowerCase()}.${pin}`));
 }
 
-/** Accepts the current code and the previous one only. A screenshot is stale within a minute. */
-export async function verifyRedeemCode(secret: string, cardId: string, code: string, now: Date): Promise<boolean> {
-  if (!/^\d{6}$/.test(code)) return false;
-  const w = redeemWindow(now);
-  for (const win of [w, w - 1]) {
-    if (safeEqual(await codeFor(secret, cardId, win), code)) return true;
+/** PINs a guesser tries first: one digit repeated (0000) and runs (1234, 9876). */
+export function isWeakPin(pin: string): boolean {
+  if (/^(\d)\1{3}$/.test(pin)) return true;
+  const d = [...pin].map(Number);
+  const steps = d.slice(1).map((x, i) => x - d[i]);
+  return steps.every((s) => s === 1) || steps.every((s) => s === -1);
+}
+
+/** A random PIN, never a weak one. Uses WebCrypto, so it is unpredictable. */
+export function randomPin(): string {
+  for (;;) {
+    const n = crypto.getRandomValues(new Uint32Array(1))[0];
+    // 4,294,960,000 is a multiple of 10,000: dropping the top few values keeps every PIN equally likely.
+    if (n >= 4_294_960_000) continue;
+    const pin = String(n % 10_000).padStart(PIN_LENGTH, '0');
+    if (!isWeakPin(pin)) return pin;
   }
-  return false;
 }
